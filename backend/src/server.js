@@ -4,6 +4,7 @@ import fs from 'node:fs';
 
 const app = express();
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 const tracksCatalog = JSON.parse(fs.readFileSync(new URL('../data/tracks_catalog.json', import.meta.url)));
 const sessions = new Map();
@@ -22,12 +23,18 @@ function error(res, status, code, message, details = {}) {
 
 app.post('/radio/session/create', (req, res) => {
   const { userId = 'anonymous', era, locale = 'ja-JP' } = req.body || {};
-  if (!era || !tracksCatalog[era]) return error(res, 400, 'INVALID_ERA', 'invalid era', { era });
+  const normalizedEra = typeof era === 'string' ? era.trim() : era;
+  if (!normalizedEra || !tracksCatalog[normalizedEra]) {
+    return error(res, 400, 'INVALID_ERA', 'invalid era', {
+      era: normalizedEra,
+      allowedEras: Object.keys(tracksCatalog)
+    });
+  }
   if (locale !== 'ja-JP') return error(res, 422, 'UNSUPPORTED_LOCALE', 'unsupported locale', { locale });
 
   const sessionId = `rs_${randomUUID().slice(0, 8)}`;
-  const queue = tracksCatalog[era];
-  const session = { sessionId, userId, era, index: 0, queue, createdAt: new Date().toISOString() };
+  const queue = tracksCatalog[normalizedEra];
+  const session = { sessionId, userId, era: normalizedEra, index: 0, queue, createdAt: new Date().toISOString() };
   sessions.set(sessionId, session);
 
   res.status(201).json({
