@@ -1,0 +1,18 @@
+{
+  "1970s": [
+    {"trackId":"t70_001","videoId":"Zi_XLOBDo_Y","title":"Billie Jean","artist":"Michael Jackson","durationSec":294,"era":"1970s"},
+    {"trackId":"t70_002","videoId":"fJ9rUzIMcZQ","title":"Bohemian Rhapsody","artist":"Queen","durationSec":354,"era":"1970s"}
+  ],
+  "1980s": [
+    {"trackId":"t80_001","videoId":"dQw4w9WgXcQ","title":"Never Gonna Give You Up","artist":"Rick Astley","durationSec":213,"era":"1980s"},
+    {"trackId":"t80_002","videoId":"9jK-NcRmVcw","title":"Numb (sample)","artist":"Sample Artist","durationSec":186,"era":"1980s"}
+  ],
+  "1990s": [
+    {"trackId":"t90_001","videoId":"3JZ4pnNtyxQ","title":"Sample 90s Song A","artist":"Sample Artist A","durationSec":245,"era":"1990s"},
+    {"trackId":"t90_002","videoId":"hTWKbfoikeg","title":"Smells Like Teen Spirit","artist":"Nirvana","durationSec":301,"era":"1990s"}
+  ],
+  "2000s": [
+    {"trackId":"t00_001","videoId":"ktvTqknDobU","title":"Numb","artist":"Linkin Park","durationSec":187,"era":"2000s"},
+    {"trackId":"t00_002","videoId":"YVkUvmDQ3HY","title":"In the End","artist":"Linkin Park","durationSec":216,"era":"2000s"}
+  ]
+}

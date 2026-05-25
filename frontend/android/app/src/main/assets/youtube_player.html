@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://www.youtube.com/iframe_api"></script>
+</head>
+<body style="margin:0;background:black;">
+  <div id="player"></div>
+  <script>
+    let player;
+    let currentVideoId = null;
+
+    function onYouTubeIframeAPIReady() {
+      player = new YT.Player('player', {
+        width: '100%',
+        height: '220',
+        playerVars: { autoplay: 0, controls: 1 },
+        events: {
+          onReady: () => AndroidBridge.onReady(),
+          onStateChange: onPlayerStateChange,
+          onError: (e) => AndroidBridge.onError(String(e.data))
+        }
+      });
+    }
+
+    function onPlayerStateChange(event) {
+      const st = String(event.data);
+      AndroidBridge.onStateChange(st);
+      if (event.data === YT.PlayerState.ENDED) {
+        AndroidBridge.onVideoEnded(currentVideoId);
+      }
+    }
+
+    window.playVideoById = function(videoId) {
+      currentVideoId = videoId;
+      player.loadVideoById(videoId);
+    }
+
+    window.pauseVideo = function() {
+      if (player) player.pauseVideo();
+    }
+  </script>
+</body>
+</html>
