@@ -332,7 +332,7 @@ Android側は `sealed class PlaybackEvent` として正規化して `RadioOrches
 
 ## Week 2: 曲間ニュース
 1. News Script Service（固定ソース整形）
-2. OpenAI/Gemini Adapter（まずOpenAI実装）
+2. OpenAI/Gemini Adapter（まずGemini実装）
 3. TTS生成→CDN配置→ExoPlayer再生
 
 **DoD**
