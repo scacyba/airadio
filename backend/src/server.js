@@ -1,6 +1,8 @@
 import express from 'express';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const app = express();
 app.use(express.json());
@@ -9,6 +11,11 @@ app.use(express.urlencoded({ extended: true }));
 const tracksCatalog = JSON.parse(fs.readFileSync(new URL('../data/tracks_catalog.json', import.meta.url)));
 const sessions = new Map();
 const newsCache = new Map();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const audioOutputDir = path.resolve(__dirname, '../generated_audio');
+fs.mkdirSync(audioOutputDir, { recursive: true });
 
 const SOURCE_NEWS_BY_ERA = {
   '1970s': [{ title: '大阪万博で未来技術に注目', summary: '1970年の万博で新技術が話題に。', date: '1970-03-15' }],
@@ -72,35 +79,85 @@ async function generateNewsScript({ era, locale = 'ja-JP', tone = 'nostalgic', m
   };
 }
 
-function synthesizeNewsAudio(newsId) {
+function buildPublicBaseUrl(req) {
+  const fromEnv = process.env.PUBLIC_BASE_URL?.trim();
+  if (fromEnv) return fromEnv.replace(/\/$/, '');
+  return `${req.protocol}://${req.get('host')}`;
+}
+
+async function synthesizeNewsAudio({ newsId, script, req }) {
+  const audioHash = createHash('sha256').update(script).digest('hex').slice(0, 16);
+  const fileName = `${newsId}-${audioHash}.mp3`;
+  const outputPath = path.join(audioOutputDir, fileName);
+
+  if (!fs.existsSync(outputPath)) {
+    const openAiApiKey = process.env.OPENAI_API_KEY;
+    if (!openAiApiKey) {
+      const err = new Error('OPENAI_API_KEY is required for TTS generation');
+      err.status = 503;
+      err.code = 'TTS_PROVIDER_UNAVAILABLE';
+      throw err;
+    }
+
+    const model = process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts';
+    const voice = process.env.OPENAI_TTS_VOICE || 'alloy';
+    const ttsResponse = await fetch('https://api.openai.com/v1/audio/speech', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${openAiApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model,
+        voice,
+        input: script,
+        format: 'mp3'
+      })
+    });
+
+    if (!ttsResponse.ok) {
+      const bodyText = await ttsResponse.text();
+      const err = new Error('tts generation failed');
+      err.status = 503;
+      err.code = 'TTS_PROVIDER_UNAVAILABLE';
+      err.details = { status: ttsResponse.status, body: bodyText.slice(0, 300) };
+      throw err;
+    }
+
+    const audioBuffer = Buffer.from(await ttsResponse.arrayBuffer());
+    fs.writeFileSync(outputPath, audioBuffer);
+  }
+
+  const audioBaseUrl = (process.env.AUDIO_BASE_URL?.trim() || `${buildPublicBaseUrl(req)}/audio-assets`).replace(/\/$/, '');
   return {
-    url: `/audio/${newsId}.mp3`,
+    url: `${audioBaseUrl}/${fileName}`,
     format: 'mp3',
     durationSec: 18
   };
 }
 
-function getOrCreateCachedNews({ era, locale, tone, maxChars }) {
+async function getOrCreateCachedNews({ era, locale, tone, maxChars, req }) {
   const key = `${era}|${locale}|${new Date().toISOString().slice(0, 10)}`;
   if (newsCache.has(key)) {
     return newsCache.get(key);
   }
 
-  return generateNewsScript({ era, locale, tone, maxChars }).then((news) => {
-    const audio = synthesizeNewsAudio(news.newsId);
-    const payload = {
-      newsId: news.newsId,
-      headline: `${era}を振り返るトピック`,
-      script: news.script,
-      charCount: news.charCount,
-      audio,
-      provider: news.provider,
-      model: news.model
-    };
-    newsCache.set(key, payload);
-    return payload;
-  });
+  const news = await generateNewsScript({ era, locale, tone, maxChars });
+  const audio = await synthesizeNewsAudio({ newsId: news.newsId, script: news.script, req });
+  const payload = {
+    newsId: news.newsId,
+    headline: `${era}を振り返るトピック`,
+    script: news.script,
+    charCount: news.charCount,
+    audio,
+    provider: news.provider,
+    model: news.model
+  };
+  newsCache.set(key, payload);
+  return payload;
 }
+
+app.use('/audio-assets', express.static(audioOutputDir, { fallthrough: false }));
 
 app.post('/radio/session/create', (req, res) => {
   const { userId = 'anonymous', era, locale = 'ja-JP' } = req.body || {};
@@ -140,7 +197,7 @@ app.get('/radio/session/:id/next', async (req, res) => {
   const nextTrack = session.queue[session.index];
 
   try {
-    const news = await getOrCreateCachedNews({ era: session.era, locale: session.locale, tone: 'nostalgic', maxChars: 180 });
+    const news = await getOrCreateCachedNews({ era: session.era, locale: session.locale, tone: 'nostalgic', maxChars: 180, req });
     return res.json({
       sessionId: session.sessionId,
       sequence: session.index + 1,
@@ -165,12 +222,6 @@ app.post('/news/script/generate', async (req, res) => {
   } catch (e) {
     return error(res, e.status || 500, e.code || 'INTERNAL_ERROR', e.message || 'internal error', e.details || {});
   }
-});
-
-app.get('/audio/:newsId.mp3', (req, res) => {
-  res.setHeader('Content-Type', 'audio/mpeg');
-  // Week2 scaffold: 擬似TTS音声。実装時はCDN/S3署名URLを返す。
-  return res.status(204).end();
 });
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
