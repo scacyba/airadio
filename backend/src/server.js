@@ -63,8 +63,8 @@ async function generateNewsScript({ era, locale = 'ja-JP', tone = 'nostalgic', m
   const script = buildScriptFromSource({ era, tone, maxChars, sourceItems });
   return {
     newsId: `n_${randomUUID().slice(0, 6)}`,
-    provider: 'openai',
-    model: process.env.OPENAI_MODEL || 'gpt-4.1-mini',
+    provider: 'gemini',
+    model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
     script,
     charCount: script.length,
     sourceItems,
