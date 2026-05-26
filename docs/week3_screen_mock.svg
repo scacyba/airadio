@@ -1,0 +1,28 @@
+<svg width="1080" height="1920" viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1080" height="1920" fill="#0f172a"/>
+  <rect x="80" y="120" width="920" height="1680" rx="42" fill="#111827" stroke="#94a3b8" stroke-width="6"/>
+  <text x="140" y="190" fill="white" font-size="36" font-family="Arial">AI Radio - Week3 UI Mock</text>
+
+  <rect x="140" y="260" width="800" height="120" rx="24" fill="#1d4ed8"/>
+  <text x="170" y="335" fill="white" font-size="40" font-family="Arial">90s Station   ▶ Playing</text>
+
+  <rect x="140" y="430" width="800" height="330" rx="24" fill="#1f2937"/>
+  <text x="170" y="490" fill="#93c5fd" font-size="34" font-family="Arial">Now Playing</text>
+  <text x="170" y="560" fill="white" font-size="36" font-family="Arial">Title: Sample Song</text>
+  <text x="170" y="620" fill="white" font-size="36" font-family="Arial">Artist: Sample Artist</text>
+  <text x="170" y="690" fill="#86efac" font-size="34" font-family="Arial">State: PLAYING_TRACK</text>
+
+  <rect x="140" y="820" width="800" height="360" rx="24" fill="#1f2937"/>
+  <text x="170" y="885" fill="#fcd34d" font-size="34" font-family="Arial">Interlude News</text>
+  <text x="170" y="955" fill="white" font-size="36" font-family="Arial">1990sを振り返るトピック</text>
+  <text x="170" y="1020" fill="#d1d5db" font-size="32" font-family="Arial">ここで当時のニュースをひとつ...</text>
+  <text x="170" y="1090" fill="#fca5a5" font-size="32" font-family="Arial">State: PLAYING_NEWS / RECOVERING</text>
+
+  <rect x="140" y="1240" width="800" height="150" rx="24" fill="#374151"/>
+  <text x="170" y="1330" fill="white" font-size="32" font-family="Arial">Error handling: retry once, then continue</text>
+
+  <rect x="140" y="1460" width="390" height="120" rx="20" fill="#2563eb"/>
+  <text x="285" y="1535" fill="white" font-size="44" font-family="Arial">STOP</text>
+  <rect x="550" y="1460" width="390" height="120" rx="20" fill="#16a34a"/>
+  <text x="685" y="1535" fill="white" font-size="44" font-family="Arial">NEXT</text>
+</svg>
