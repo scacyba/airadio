@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920">
+  <rect width="1080" height="1920" fill="#131a2a"/>
+  <rect x="80" y="140" width="920" height="1640" rx="36" fill="#f5f8ff"/>
+  <text x="120" y="210" font-size="40" font-family="Arial" fill="#121a2a" font-weight="bold">AI Radio - Week3 Mock</text>
+  <text x="120" y="260" font-size="28" font-family="Arial" fill="#435">1990s Station</text>
+  <text x="120" y="320" font-size="22" font-family="Arial" fill="#335">MUSIC_PLAYING → WAITING_NEXT_UNIT → NEWS_PLAYING</text>
+
+  <rect x="120" y="390" width="840" height="260" rx="24" fill="#e6f2ff"/>
+  <text x="150" y="460" font-size="32" font-family="Arial" fill="#121a2a">Now Playing: Sample Song</text>
+  <text x="150" y="520" font-size="26" font-family="Arial" fill="#334">Track end → GET /radio/session/{id}/next</text>
+
+  <rect x="120" y="710" width="840" height="260" rx="24" fill="#fff0e4"/>
+  <text x="150" y="780" font-size="32" font-family="Arial" fill="#121a2a">Interstitial News</text>
+  <text x="150" y="840" font-size="26" font-family="Arial" fill="#334">audioUrl: /audio/n_xxxxxx.mp3</text>
+  <text x="150" y="900" font-size="26" font-family="Arial" fill="#334">ExoPlayer via NewsAudioPlayer implementation</text>
+
+  <rect x="120" y="1030" width="840" height="380" rx="24" fill="#ebffec"/>
+  <text x="150" y="1100" font-size="32" font-family="Arial" fill="#121a2a">Week3 Recovery</text>
+  <text x="150" y="1170" font-size="26" font-family="Arial" fill="#334">SESSION_STATE_MISMATCH → retry /next (without afterTrackId)</text>
+  <text x="150" y="1230" font-size="26" font-family="Arial" fill="#334">News playback error → skip news and continue next song</text>
+
+  <rect x="360" y="1540" width="360" height="120" rx="18" fill="#4a78ff"/>
+  <text x="540" y="1615" font-size="42" font-family="Arial" fill="#fff" text-anchor="middle">PLAY</text>
+</svg>
