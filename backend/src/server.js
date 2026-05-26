@@ -85,46 +85,114 @@ function buildPublicBaseUrl(req) {
   return `${req.protocol}://${req.get('host')}`;
 }
 
+async function requestTtsMp3Buffer(script) {
+  const provider = (process.env.TTS_PROVIDER || 'gemini').trim().toLowerCase();
+
+  const providers = {
+    gemini: async () => {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        const err = new Error('GEMINI_API_KEY is required for Gemini TTS generation');
+        err.status = 503;
+        err.code = 'TTS_PROVIDER_UNAVAILABLE';
+        throw err;
+      }
+
+      const model = process.env.GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts';
+      const voice = process.env.GEMINI_TTS_VOICE || 'Kore';
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: script }] }],
+          generationConfig: {
+            responseModalities: ['AUDIO'],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: {
+                  voiceName: voice
+                }
+              }
+            }
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const bodyText = await response.text();
+        const err = new Error('gemini tts generation failed');
+        err.status = 503;
+        err.code = 'TTS_PROVIDER_UNAVAILABLE';
+        err.details = { status: response.status, body: bodyText.slice(0, 300) };
+        throw err;
+      }
+
+      const payload = await response.json();
+      const audioPart = payload?.candidates?.[0]?.content?.parts?.find((part) => part.inlineData?.data);
+      const audioBase64 = audioPart?.inlineData?.data;
+      if (!audioBase64) {
+        const err = new Error('gemini tts audio payload not found');
+        err.status = 503;
+        err.code = 'TTS_PROVIDER_UNAVAILABLE';
+        err.details = { provider: 'gemini' };
+        throw err;
+      }
+
+      return Buffer.from(audioBase64, 'base64');
+    },
+    openai: async () => {
+      const apiKey = process.env.OPENAI_API_KEY;
+      if (!apiKey) {
+        const err = new Error('OPENAI_API_KEY is required for OpenAI TTS generation');
+        err.status = 503;
+        err.code = 'TTS_PROVIDER_UNAVAILABLE';
+        throw err;
+      }
+
+      const model = process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts';
+      const voice = process.env.OPENAI_TTS_VOICE || 'alloy';
+      const response = await fetch('https://api.openai.com/v1/audio/speech', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ model, voice, input: script, format: 'mp3' })
+      });
+
+      if (!response.ok) {
+        const bodyText = await response.text();
+        const err = new Error('openai tts generation failed');
+        err.status = 503;
+        err.code = 'TTS_PROVIDER_UNAVAILABLE';
+        err.details = { status: response.status, body: bodyText.slice(0, 300) };
+        throw err;
+      }
+
+      return Buffer.from(await response.arrayBuffer());
+    }
+  };
+
+  const ttsHandler = providers[provider];
+  if (!ttsHandler) {
+    const err = new Error('unsupported tts provider');
+    err.status = 400;
+    err.code = 'INVALID_TTS_PROVIDER';
+    err.details = { provider, allowedProviders: Object.keys(providers) };
+    throw err;
+  }
+
+  return ttsHandler();
+}
+
 async function synthesizeNewsAudio({ newsId, script, req }) {
-  const audioHash = createHash('sha256').update(script).digest('hex').slice(0, 16);
+  const provider = (process.env.TTS_PROVIDER || 'gemini').trim().toLowerCase();
+  const audioHash = createHash('sha256').update(`${provider}:${script}`).digest('hex').slice(0, 16);
   const fileName = `${newsId}-${audioHash}.mp3`;
   const outputPath = path.join(audioOutputDir, fileName);
 
   if (!fs.existsSync(outputPath)) {
-    const openAiApiKey = process.env.OPENAI_API_KEY;
-    if (!openAiApiKey) {
-      const err = new Error('OPENAI_API_KEY is required for TTS generation');
-      err.status = 503;
-      err.code = 'TTS_PROVIDER_UNAVAILABLE';
-      throw err;
-    }
-
-    const model = process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts';
-    const voice = process.env.OPENAI_TTS_VOICE || 'alloy';
-    const ttsResponse = await fetch('https://api.openai.com/v1/audio/speech', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${openAiApiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model,
-        voice,
-        input: script,
-        format: 'mp3'
-      })
-    });
-
-    if (!ttsResponse.ok) {
-      const bodyText = await ttsResponse.text();
-      const err = new Error('tts generation failed');
-      err.status = 503;
-      err.code = 'TTS_PROVIDER_UNAVAILABLE';
-      err.details = { status: ttsResponse.status, body: bodyText.slice(0, 300) };
-      throw err;
-    }
-
-    const audioBuffer = Buffer.from(await ttsResponse.arrayBuffer());
+    const audioBuffer = await requestTtsMp3Buffer(script);
     fs.writeFileSync(outputPath, audioBuffer);
   }
 
