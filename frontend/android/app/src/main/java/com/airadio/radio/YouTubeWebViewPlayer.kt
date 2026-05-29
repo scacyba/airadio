@@ -6,8 +6,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 
 class YouTubeWebViewPlayer(
-    private val webView: WebView,
-    private val listener: Listener
+    private val webView: WebView
 ) {
     interface Listener {
         fun onReady()
@@ -16,26 +15,70 @@ class YouTubeWebViewPlayer(
         fun onError(code: String)
     }
 
+    var listener: Listener? = null
+    private var initialized = false
+    private var ready = false
+    private var pendingVideoId: String? = null
+
     @SuppressLint("SetJavaScriptEnabled")
     fun initialize() {
+        if (initialized) return
+        initialized = true
         webView.settings.javaScriptEnabled = true
+        webView.settings.domStorageEnabled = true
+        webView.settings.mediaPlaybackRequiresUserGesture = false
         webView.webViewClient = WebViewClient()
-        webView.addJavascriptInterface(Bridge(listener), "AndroidBridge")
-        webView.loadUrl("file:///android_asset/youtube_player.html")
+        webView.addJavascriptInterface(Bridge(this), "AndroidBridge")
+        webView.loadDataWithBaseURL(
+            PLAYER_BASE_URL,
+            webView.context.assets.open(YOUTUBE_PLAYER_ASSET).bufferedReader().use { it.readText() },
+            "text/html",
+            "UTF-8",
+            null
+        )
     }
 
     fun play(videoId: String) {
-        webView.evaluateJavascript("window.playVideoById('$videoId');", null)
+        pendingVideoId = videoId
+        if (!ready) return
+        webView.post {
+            val escapedVideoId = videoId.replace("\\", "\\\\").replace("'", "\\'")
+            webView.evaluateJavascript("window.playVideoById('$escapedVideoId');", null)
+            pendingVideoId = null
+        }
     }
 
     fun pause() {
-        webView.evaluateJavascript("window.pauseVideo();", null)
+        webView.post { webView.evaluateJavascript("window.pauseVideo();", null) }
     }
 
-    private class Bridge(private val listener: Listener) {
-        @JavascriptInterface fun onReady() = listener.onReady()
-        @JavascriptInterface fun onStateChange(state: String) = listener.onStateChange(state)
-        @JavascriptInterface fun onVideoEnded(trackId: String?) = listener.onVideoEnded(trackId)
-        @JavascriptInterface fun onError(code: String) = listener.onError(code)
+    fun destroy() {
+        ready = false
+        initialized = false
+        pendingVideoId = null
+        webView.destroy()
+    }
+
+    private fun handleReady() {
+        ready = true
+        listener?.onReady()
+        pendingVideoId?.let(::play)
+    }
+
+    private class Bridge(private val player: YouTubeWebViewPlayer) {
+        @JavascriptInterface
+        fun onReady() = player.webView.post { player.handleReady() }
+
+        @JavascriptInterface
+        fun onStateChange(state: String) = player.webView.post { player.listener?.onStateChange(state) }
+
+        @JavascriptInterface
+        fun onVideoEnded(trackId: String?) = player.webView.post { player.listener?.onVideoEnded(trackId) }
+
+        @JavascriptInterface
+        fun onError(code: String) = player.webView.post { player.listener?.onError(code) }
     }
 }
+
+private const val YOUTUBE_PLAYER_ASSET = "youtube_player.html"
+private const val PLAYER_BASE_URL = "https://airadio.local/"
