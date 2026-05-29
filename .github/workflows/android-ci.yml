@@ -21,6 +21,9 @@ jobs:
 
     steps:
 
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Check env
         env:
           RADIO_API_BASE_URL: ${{ secrets.RADIO_API_BASE_URL }}
@@ -31,9 +34,6 @@ jobs:
           else
             echo "RADIO_API_BASE_URL is SET"
           fi
-
-      - name: Checkout
-        uses: actions/checkout@v4
 
       - name: Setup Java
         uses: actions/setup-java@v4
