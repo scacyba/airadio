@@ -42,6 +42,14 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    defaultConfig {
+        buildConfigField(
+            "String",
+            "RADIO_API_BASE_URL",
+            "\"${System.getenv("RADIO_API_BASE_URL") ?: ""}\""
+        )
+    }
 }
 
 dependencies {
