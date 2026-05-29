@@ -1,9 +1,9 @@
 package com.airadio
 
 import android.os.Bundle
+import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,11 +22,25 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import com.airadio.radio.AndroidNewsAudioPlayer
+import com.airadio.radio.HttpRadioApiClient
+import com.airadio.radio.RadioOrchestrator
+import com.airadio.radio.YouTubeWebViewPlayer
+
+private val EraOptions = listOf("1970s", "1980s", "1990s", "2000s")
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,7 +48,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             AiradioTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFF0F172A)) {
-                    Week3MockScreen()
+                    RadioScreen()
                 }
             }
         }
@@ -47,73 +61,107 @@ fun AiradioTheme(content: @Composable () -> Unit) {
 }
 
 @Composable
-fun Week3MockScreen() {
+fun RadioScreen() {
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val webView = remember { WebView(context) }
+    var uiState by remember { mutableStateOf(RadioOrchestrator.RadioUiState()) }
+
+    val newsAudioPlayer = remember { AndroidNewsAudioPlayer(context.applicationContext) }
+    val youTubePlayer = remember { YouTubeWebViewPlayer(webView) }
+    val orchestrator = remember {
+        RadioOrchestrator(
+            youTubePlayer = youTubePlayer,
+            newsAudioPlayer = newsAudioPlayer,
+            radioApiClient = HttpRadioApiClient(BuildConfig.RADIO_API_BASE_URL),
+            scope = coroutineScope,
+            onUiStateChanged = { uiState = it }
+        ).also { youTubePlayer.listener = it }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            newsAudioPlayer.release()
+            youTubePlayer.destroy()
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Text("AI Radio - Week3 UI Mock", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text("AI Radio", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+        Text("Backend: ${BuildConfig.RADIO_API_BASE_URL}", color = Color(0xFF9CA3AF), fontSize = 12.sp)
 
-        Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF1D4ED8)), shape = RoundedCornerShape(16.dp)) {
-            Text(
-                "90s Station   ▶ Playing",
-                color = Color.White,
-                modifier = Modifier.padding(16.dp),
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
+        EraSelector(
+            selectedEra = uiState.selectedEra,
+            onEraSelected = orchestrator::startSession
+        )
+
+        Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF111827)), shape = RoundedCornerShape(16.dp)) {
+            AndroidView(
+                factory = { webView },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp)
+                    .padding(8.dp)
             )
         }
 
         Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF1F2937)), shape = RoundedCornerShape(16.dp)) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Now Playing", color = Color(0xFF93C5FD), fontSize = 18.sp)
-                Text("Title: Sample Song", color = Color.White, fontSize = 18.sp)
-                Text("Artist: Sample Artist", color = Color.White, fontSize = 18.sp)
-                Text("State: PLAYING_TRACK", color = Color(0xFF86EFAC), fontSize = 16.sp)
+                Text("Now Playing", color = Color(0xFF93C5FD), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text("Era: ${uiState.selectedEra}", color = Color.White, fontSize = 16.sp)
+                Text("Title: ${uiState.nowPlaying?.title ?: "-"}", color = Color.White, fontSize = 16.sp)
+                Text("Artist: ${uiState.nowPlaying?.artist ?: "-"}", color = Color.White, fontSize = 16.sp)
+                Text("State: ${uiState.playbackState}", color = Color(0xFF86EFAC), fontSize = 14.sp)
+                Text(uiState.statusMessage, color = Color(0xFFD1D5DB), fontSize = 14.sp)
             }
         }
 
         Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF1F2937)), shape = RoundedCornerShape(16.dp)) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Interlude News", color = Color(0xFFFCD34D), fontSize = 18.sp)
-                Text("1990sを振り返るトピック", color = Color.White, fontSize = 18.sp)
-                Text("ここで当時のニュースをひとつ...", color = Color(0xFFD1D5DB), fontSize = 16.sp)
-                Text("State: PLAYING_NEWS / RECOVERING", color = Color(0xFFFCA5A5), fontSize = 16.sp)
+                Text("Interlude News TTS", color = Color(0xFFFCD34D), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(uiState.newsHeadline ?: "曲間で年代ニュースをTTS再生します。", color = Color.White, fontSize = 16.sp)
+                Text(uiState.newsScript ?: "最初の1曲が終わると、Backendの /next からニュース音声URLを取得してExoPlayerで再生します。", color = Color(0xFFD1D5DB), fontSize = 14.sp)
             }
         }
 
-        Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF374151)), shape = RoundedCornerShape(16.dp)) {
-            Text(
-                "Error handling: retry once, then continue",
-                color = Color.White,
-                modifier = Modifier.padding(16.dp),
-                fontSize = 14.sp
-            )
+        uiState.errorMessage?.let { message ->
+            Text("Error: $message", color = Color(0xFFFCA5A5), fontSize = 13.sp)
         }
-
-        Spacer(modifier = Modifier.height(8.dp))
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Button(
-                onClick = {},
+                onClick = orchestrator::stop,
                 modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF475569))
             ) { Text("STOP") }
             Spacer(modifier = Modifier.width(12.dp))
             Button(
-                onClick = {},
+                onClick = orchestrator::playNext,
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A))
-            ) { Text("NEXT") }
+            ) { Text("NEWS / NEXT") }
         }
+    }
+}
 
-        Text(
-            "※ API/再生制御は未接続のため、この画面はMock UIです。",
-            color = Color(0xFF9CA3AF),
-            fontSize = 12.sp,
-            modifier = Modifier.padding(top = 8.dp)
-        )
+@Composable
+private fun EraSelector(selectedEra: String, onEraSelected: (String) -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        EraOptions.forEach { era ->
+            Button(
+                onClick = { onEraSelected(era) },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (era == selectedEra) Color(0xFF2563EB) else Color(0xFF334155)
+                )
+            ) {
+                Text(era)
+            }
+        }
     }
 }
