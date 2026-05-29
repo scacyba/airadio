@@ -21,6 +21,17 @@ jobs:
 
     steps:
 
+      - name: Check env
+        env:
+          RADIO_API_BASE_URL: ${{ secrets.RADIO_API_BASE_URL }}
+        run: |
+          if [ -z "$RADIO_API_BASE_URL" ]; then
+            echo "RADIO_API_BASE_URL is EMPTY"
+            exit 1
+          else
+            echo "RADIO_API_BASE_URL is SET"
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
 
