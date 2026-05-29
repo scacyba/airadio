@@ -17,7 +17,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: frontend
+        working-directory: frontend/android
 
     steps:
 
@@ -49,5 +49,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: debug-apk
-          path: frontend/app/build/outputs/apk/debug/*.apk
+          path: frontend/android/app/build/outputs/apk/debug/*.apk
 

@@ -1,17 +1,42 @@
-# Airadio Android (Phase 1 Week 2 Scaffold)
+# Airadio Android (frontend/android)
 
-## 実装内容
-- WebView 上で YouTube IFrame Player API を使う最小構成
-- JS Bridge で `onReady` / `onStateChange` / `onError` / `onVideoEnded` を Android に通知
-- `RadioOrchestrator` で「曲終了 → /next取得 → ニュース音声再生 → 次曲再生」の順次制御
-- `NewsAudioPlayer` / `RadioApiClient` インターフェースを追加し、Week 2 の差し替え可能な構造に整理
+## Android Studioで開くディレクトリ
+- **`frontend/android` を開いてください。**
+- `frontend` 直下ではなく、Gradleプロジェクト定義（`settings.gradle.kts`）がある `frontend/android` をOpen対象にします。
 
-## 主要ファイル
-- `app/src/main/java/com/airadio/radio/YouTubeWebViewPlayer.kt`
-- `app/src/main/java/com/airadio/radio/RadioOrchestrator.kt`
-- `app/src/main/java/com/airadio/radio/NewsAudioPlayer.kt`
-- `app/src/main/java/com/airadio/radio/RadioApiClient.kt`
-- `app/src/main/assets/youtube_player.html`
+## プロジェクト種別
+- **XML Viewベース**（Compose未使用）
+- Materialは **Material Components (`com.google.android.material:material`)** を採用
 
-## 備考
-- ExoPlayer 実体は `NewsAudioPlayer` 実装クラスとして Week 2 後半で接続予定。
+## ビルド構成
+- AGP: `8.5.0`
+- Kotlin Gradle Plugin: `1.9.24`
+- Gradle Wrapper: `8.7`（`gradle-wrapper.properties`）
+- JDK: **17**
+- compileSdk: `34`
+- minSdk: `24`
+- targetSdk: `34`
+- namespace / applicationId: `com.airadio`
+
+## 同期/ビルド手順
+```bash
+cd frontend/android
+./gradlew projects
+./gradlew :app:assembleDebug
+```
+
+## 追加済みのビルド安定化対応
+- `AndroidManifest.xml` の Activity を完全修飾名 `com.airadio.MainActivity` に変更
+- layout `tools:context` を完全修飾名に変更
+- Materialテーマ参照を解決済み（`Theme.Airadio`）
+- 依存関係の不足を補完
+  - `androidx.activity:activity-ktx`
+  - `androidx.webkit:webkit`
+  - `androidx.media3:media3-exoplayer`
+  - `androidx.media3:media3-ui`
+
+## 注意点（このリポジトリ時点）
+- `RadioApiClient` / `NewsAudioPlayer` はインターフェースのみで、実体実装は未接続です。
+  - ただしビルド自体は可能な構成にしています。
+- この実行環境では外部Mavenアクセスが403となるため、依存取得を伴う実ビルドは検証できませんでした。
+  - 通常の開発環境（Android Studio + インターネット接続）でGradle Sync/Buildしてください。
