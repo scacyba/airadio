@@ -375,10 +375,10 @@ Android側は `sealed class PlaybackEvent` として正規化して `RadioOrches
 - [x] CI: Androidの `assembleDebug`、`testDebugUnitTest`、`lintDebug` を実行するGitHub Actionsを追加済み。
 
 ### Undone
-- [ ] Android E2E接続: 年代選択UI、`RadioApiClient`、`RadioOrchestrator`、WebView/ExoPlayer連携が未実装のため、年代選択→最初の1曲再生のDoDは未達。
-- [ ] WebView埋め込み実体: IFrame用HTMLはあるが、Android側のWebView生成、JS Bridge、状態イベント正規化、動画ロード処理が未接続。
-- [ ] ExoPlayer実体: Media3依存関係はあるが、`NewsAudioPlayer` ラッパーとニュース音声再生フローは未実装。
-- [ ] 曲終了→ニュース→次曲の自動遷移: Backendの `/next` はあるが、Android側の曲終了イベントからニュース再生、次曲再生へ進む制御が未接続。
+- [x] Android E2E接続: 年代選択UI、`HttpRadioApiClient`、`RadioOrchestrator`、WebView/ExoPlayer連携を実装し、年代選択→最初の1曲再生および曲間ニュースTTS再生の経路を接続済み。
+- [x] WebView埋め込み実体: Android側のWebView生成、JS Bridge、状態イベント正規化、動画ロード処理を接続済み。
+- [x] ExoPlayer実体: Media3 `ExoPlayer` を使う `AndroidNewsAudioPlayer` ラッパーとニュース音声再生フローを実装済み。
+- [x] 曲終了→ニュース→次曲の自動遷移: Android側の曲終了イベントから `/next` を取得し、ニュースTTS再生後に次曲再生へ進む制御を接続済み。
 - [ ] LLMニュース生成: `POST /news/script/generate` は固定ソースのテンプレ生成であり、OpenAI/GeminiのLLM短文整形呼び出しは未実装。
 - [ ] 固定ニュースソース取得: RSS/ニュースAPI等からの取得処理は未実装で、コード内の固定配列に依存している。
 - [ ] TTS運用ストレージ: ローカルファイル保存と静的配信はあるが、CDN/S3/GCS等へのアップロード経路と署名付きURL発行は未実装。
@@ -386,7 +386,7 @@ Android側は `sealed class PlaybackEvent` として正規化して `RadioOrches
 - [ ] API安定化: `SESSION_EXPIRED`、レート制限、`includeNews` の分岐、`/create` による自動再同期、リトライ設計は未実装。
 - [ ] Week 3安定化DoD: 30分連続再生検証、異常系込みの再生ステートマシン、`SESSION_STATE_MISMATCH` からの自動復旧は未達。
 - [ ] 運用前仕上げ: ログ/メトリクス、KPIダッシュボード、A/Bパラメータ、API契約テスト、UI自動試験は未実装。
-- [ ] ドキュメント整合: Android READMEに過去のXML Viewベース記述が残っており、現在のCompose実装との整合更新が必要。
+- [x] ドキュメント整合: Android READMEをCompose実装、Backend接続、E2E接続済みフローに合わせて更新済み。
 
 ## 優先順位（高→低）
 1. 再生フロー成立（曲→ニュース→次曲）
