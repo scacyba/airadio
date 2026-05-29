@@ -15,6 +15,12 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField(
+            "String",
+            "RADIO_API_BASE_URL",
+            "\"${System.getenv("RADIO_API_BASE_URL") ?: ""}\""
+        )
     }
 
     buildTypes {
@@ -41,14 +47,6 @@ android {
     }
     kotlinOptions {
         jvmTarget = "17"
-    }
-
-    defaultConfig {
-        buildConfigField(
-            "String",
-            "RADIO_API_BASE_URL",
-            "\"${System.getenv("RADIO_API_BASE_URL") ?: ""}\""
-        )
     }
 }
 
