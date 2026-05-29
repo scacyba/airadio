@@ -357,6 +357,37 @@ Android側は `sealed class PlaybackEvent` として正規化して `RadioOrches
 - KPIダッシュボードで主要値を可視化
 - 回帰テストをCIで自動実行
 
+
+## 5.1 現在のブランチにおけるDone/Undone整理（2026-05-29時点）
+
+### Done
+- [x] Backend雛形: Express常駐プロセスとして `POST /radio/session/create`、`GET /radio/session/:id/next`、`POST /news/script/generate`、`GET /health` を実装済み。
+- [x] 共通エラーフォーマット: `code`、`message`、`details`、`requestId`、`timestamp` を返す形式を実装済み。
+- [x] セッション管理: in-memory `sessions` によるセッション作成、現在曲管理、`afterTrackId` 不整合時の `SESSION_STATE_MISMATCH` 返却を実装済み。
+- [x] tracks_catalog初期データ: `1970s`、`1980s`、`1990s`、`2000s` の年代別データを投入済み（ただし各2曲で、設計上の「年代×20曲程度」には未達）。
+- [x] News Script Serviceのモック相当: 固定ソースから短文原稿を生成し、`maxChars` で切り詰める処理を実装済み。
+- [x] news_cache: 年代・ロケール・日付単位のインメモリキャッシュを導入済み。
+- [x] TTS ServiceのProvider Adapter: `TTS_PROVIDER` 環境変数によりGemini/OpenAIのTTS生成先を切り替える実装を追加済み。
+- [x] TTS音声配信: 生成音声を `generated_audio` に保存し、`/audio-assets` または `AUDIO_BASE_URL` 経由のURLを返す実装を追加済み。
+- [x] Androidプロジェクト基盤: `frontend/android` にGradle/Compose構成、依存関係、CIビルド定義を追加済み。
+- [x] YouTube IFrame用HTML: `youtube_player.html` にIFrame API、`AndroidBridge` イベント通知、`playVideoById`/`pauseVideo` を定義済み。
+- [x] Week 3向けMock UI: 再生中、曲間ニュース、リカバリ状態を示すComposeモック画面を追加済み。
+- [x] CI: Androidの `assembleDebug`、`testDebugUnitTest`、`lintDebug` を実行するGitHub Actionsを追加済み。
+
+### Undone
+- [ ] Android E2E接続: 年代選択UI、`RadioApiClient`、`RadioOrchestrator`、WebView/ExoPlayer連携が未実装のため、年代選択→最初の1曲再生のDoDは未達。
+- [ ] WebView埋め込み実体: IFrame用HTMLはあるが、Android側のWebView生成、JS Bridge、状態イベント正規化、動画ロード処理が未接続。
+- [ ] ExoPlayer実体: Media3依存関係はあるが、`NewsAudioPlayer` ラッパーとニュース音声再生フローは未実装。
+- [ ] 曲終了→ニュース→次曲の自動遷移: Backendの `/next` はあるが、Android側の曲終了イベントからニュース再生、次曲再生へ進む制御が未接続。
+- [ ] LLMニュース生成: `POST /news/script/generate` は固定ソースのテンプレ生成であり、OpenAI/GeminiのLLM短文整形呼び出しは未実装。
+- [ ] 固定ニュースソース取得: RSS/ニュースAPI等からの取得処理は未実装で、コード内の固定配列に依存している。
+- [ ] TTS運用ストレージ: ローカルファイル保存と静的配信はあるが、CDN/S3/GCS等へのアップロード経路と署名付きURL発行は未実装。
+- [ ] セッション永続化: `sessions`、`news_cache` はプロセス内Mapのため、再起動や複数インスタンスに対応する永続ストアは未実装。
+- [ ] API安定化: `SESSION_EXPIRED`、レート制限、`includeNews` の分岐、`/create` による自動再同期、リトライ設計は未実装。
+- [ ] Week 3安定化DoD: 30分連続再生検証、異常系込みの再生ステートマシン、`SESSION_STATE_MISMATCH` からの自動復旧は未達。
+- [ ] 運用前仕上げ: ログ/メトリクス、KPIダッシュボード、A/Bパラメータ、API契約テスト、UI自動試験は未実装。
+- [ ] ドキュメント整合: Android READMEに過去のXML Viewベース記述が残っており、現在のCompose実装との整合更新が必要。
+
 ## 優先順位（高→低）
 1. 再生フロー成立（曲→ニュース→次曲）
 2. API安定化（状態不整合の自己修復）
