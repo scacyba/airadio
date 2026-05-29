@@ -40,6 +40,37 @@ function normalizeEra(era) {
   return typeof era === 'string' ? era.trim() : era;
 }
 
+function normalizeMaxChars(maxChars) {
+  const parsed = Number(maxChars);
+  if (!Number.isFinite(parsed)) return 180;
+  return Math.min(300, Math.max(40, Math.trunc(parsed)));
+}
+
+function normalizeSourceItems(sourceItems) {
+  if (!Array.isArray(sourceItems)) return [];
+  return sourceItems
+    .map((item) => ({
+      title: String(item?.title || '').trim(),
+      summary: String(item?.summary || '').trim(),
+      date: String(item?.date || '').trim()
+    }))
+    .filter((item) => item.title && item.summary)
+    .slice(0, 3);
+}
+
+function stripSurroundingQuotes(text) {
+  return text.replace(/^[「『\"'\s]+|[」』\"'\s]+$/g, '');
+}
+
+function sanitizeGeneratedScript(text, maxChars) {
+  const script = stripSurroundingQuotes(String(text || ''))
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return script.length > maxChars ? script.slice(0, maxChars) : script;
+}
+
 function buildScriptFromSource({ era, tone = 'nostalgic', maxChars = 180, sourceItems = [] }) {
   const src = sourceItems[0] ?? { title: `${era}の出来事`, summary: '当時の雰囲気を伝える話題です。', date: '' };
   const tonePrefix = tone === 'warm' ? 'やさしく振り返ると' : '懐かしく振り返ると';
@@ -49,7 +80,149 @@ function buildScriptFromSource({ era, tone = 'nostalgic', maxChars = 180, source
   return script;
 }
 
-async function generateNewsScript({ era, locale = 'ja-JP', tone = 'nostalgic', maxChars = 180 }) {
+function resolveLlmProvider(requestedProvider) {
+  const rawProvider = String(requestedProvider || process.env.LLM_PROVIDER || 'auto').trim().toLowerCase();
+  if (rawProvider === 'auto') {
+    if (process.env.OPENAI_API_KEY) return 'openai';
+    if (process.env.GEMINI_API_KEY) return 'gemini';
+    return 'template';
+  }
+
+  const allowedProviders = ['openai', 'gemini', 'template'];
+  if (!allowedProviders.includes(rawProvider)) {
+    const err = new Error('unsupported llm provider');
+    err.status = 400;
+    err.code = 'INVALID_LLM_PROVIDER';
+    err.details = { provider: rawProvider, allowedProviders: ['auto', ...allowedProviders] };
+    throw err;
+  }
+  return rawProvider;
+}
+
+function buildNewsPrompt({ era, locale, tone, maxChars, sourceItems }) {
+  const toneInstruction = tone === 'warm'
+    ? 'やさしく親しみやすい口調'
+    : '懐かしさを感じるラジオDJ風の口調';
+  const sources = sourceItems.map((item, index) => (
+    `${index + 1}. date=${item.date || 'unknown'} title=${item.title} summary=${item.summary}`
+  )).join('\n');
+
+  return [
+    'あなたは日本語ラジオ番組の曲間ニュース原稿ライターです。',
+    `対象年代: ${era}`,
+    `ロケール: ${locale}`,
+    `口調: ${toneInstruction}`,
+    `制約: ${maxChars}文字以内。ニュース原稿本文だけを出力。箇条書き、見出し、引用符、出典表記は不要。`,
+    '固定ニュースソースの事実だけを使い、断定しすぎず短く自然な一文から二文にしてください。',
+    'ソース:',
+    sources
+  ].join('\n');
+}
+
+function extractOpenAiText(payload) {
+  if (typeof payload?.output_text === 'string') return payload.output_text;
+  const output = Array.isArray(payload?.output) ? payload.output : [];
+  return output
+    .flatMap((item) => Array.isArray(item?.content) ? item.content : [])
+    .filter((part) => part?.type === 'output_text' && typeof part?.text === 'string')
+    .map((part) => part.text)
+    .join('\n');
+}
+
+function extractGeminiText(payload) {
+  return (payload?.candidates?.[0]?.content?.parts || [])
+    .filter((part) => typeof part?.text === 'string')
+    .map((part) => part.text)
+    .join('\n');
+}
+
+async function callOpenAiForNews(prompt) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    const err = new Error('OPENAI_API_KEY is required for OpenAI news generation');
+    err.status = 503;
+    err.code = 'LLM_PROVIDER_UNAVAILABLE';
+    throw err;
+  }
+
+  const model = process.env.OPENAI_NEWS_MODEL || 'gpt-4.1-mini';
+  const response = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model,
+      input: prompt,
+      max_output_tokens: 220,
+      temperature: 0.7
+    })
+  });
+
+  if (!response.ok) {
+    const bodyText = await response.text();
+    const err = new Error('openai news generation failed');
+    err.status = 503;
+    err.code = 'LLM_PROVIDER_UNAVAILABLE';
+    err.details = { status: response.status, body: bodyText.slice(0, 300) };
+    throw err;
+  }
+
+  const payload = await response.json();
+  return { provider: 'openai', model, text: extractOpenAiText(payload), raw: payload };
+}
+
+async function callGeminiForNews(prompt) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    const err = new Error('GEMINI_API_KEY is required for Gemini news generation');
+    err.status = 503;
+    err.code = 'LLM_PROVIDER_UNAVAILABLE';
+    throw err;
+  }
+
+  const model = process.env.GEMINI_NEWS_MODEL || process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 220
+      }
+    })
+  });
+
+  if (!response.ok) {
+    const bodyText = await response.text();
+    const err = new Error('gemini news generation failed');
+    err.status = 503;
+    err.code = 'LLM_PROVIDER_UNAVAILABLE';
+    err.details = { status: response.status, body: bodyText.slice(0, 300) };
+    throw err;
+  }
+
+  const payload = await response.json();
+  if (payload?.promptFeedback?.blockReason) {
+    const err = new Error('news generation blocked by safety filter');
+    err.status = 422;
+    err.code = 'SAFETY_BLOCKED';
+    err.details = { blockReason: payload.promptFeedback.blockReason };
+    throw err;
+  }
+
+  return { provider: 'gemini', model, text: extractGeminiText(payload), raw: payload };
+}
+
+async function requestLlmNewsScript({ provider, prompt }) {
+  if (provider === 'openai') return callOpenAiForNews(prompt);
+  if (provider === 'gemini') return callGeminiForNews(prompt);
+  return { provider: 'template', model: 'local-template', text: '', raw: null };
+}
+
+async function generateNewsScript({ era, locale = 'ja-JP', tone = 'nostalgic', maxChars = 180, sourceItems, llmProvider }) {
   if (locale !== 'ja-JP') {
     const err = new Error('unsupported locale');
     err.status = 422;
@@ -58,8 +231,10 @@ async function generateNewsScript({ era, locale = 'ja-JP', tone = 'nostalgic', m
     throw err;
   }
 
-  const sourceItems = SOURCE_NEWS_BY_ERA[era] ?? [];
-  if (!sourceItems.length) {
+  const resolvedMaxChars = normalizeMaxChars(maxChars);
+  const normalizedSources = normalizeSourceItems(sourceItems);
+  const resolvedSourceItems = normalizedSources.length ? normalizedSources : (SOURCE_NEWS_BY_ERA[era] ?? []);
+  if (!resolvedSourceItems.length) {
     const err = new Error('no source for era');
     err.status = 400;
     err.code = 'INVALID_INPUT';
@@ -67,15 +242,30 @@ async function generateNewsScript({ era, locale = 'ja-JP', tone = 'nostalgic', m
     throw err;
   }
 
-  const script = buildScriptFromSource({ era, tone, maxChars, sourceItems });
+  const provider = resolveLlmProvider(llmProvider);
+  const prompt = buildNewsPrompt({ era, locale, tone, maxChars: resolvedMaxChars, sourceItems: resolvedSourceItems });
+  const llmResult = await requestLlmNewsScript({ provider, prompt });
+  const templateScript = buildScriptFromSource({ era, tone, maxChars: resolvedMaxChars, sourceItems: resolvedSourceItems });
+  const sanitizedLlmScript = sanitizeGeneratedScript(llmResult.text, resolvedMaxChars);
+  const script = sanitizedLlmScript || templateScript;
+
+  if (script.length > resolvedMaxChars) {
+    const err = new Error('generated script is too long');
+    err.status = 413;
+    err.code = 'SCRIPT_TOO_LONG';
+    err.details = { charCount: script.length, maxChars: resolvedMaxChars };
+    throw err;
+  }
+
   return {
     newsId: `n_${randomUUID().slice(0, 6)}`,
-    provider: 'gemini',
-    model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+    provider: llmResult.provider,
+    model: llmResult.model,
     script,
     charCount: script.length,
-    sourceItems,
-    safety: { blocked: false, categories: [] }
+    sourceItems: resolvedSourceItems,
+    safety: { blocked: false, categories: [] },
+    generatedByFallback: !sanitizedLlmScript
   };
 }
 
@@ -205,7 +395,8 @@ async function synthesizeNewsAudio({ newsId, script, req }) {
 }
 
 async function getOrCreateCachedNews({ era, locale, tone, maxChars, req }) {
-  const key = `${era}|${locale}|${new Date().toISOString().slice(0, 10)}`;
+  const providerKey = process.env.LLM_PROVIDER || 'auto';
+  const key = `${era}|${locale}|${tone}|${maxChars}|${providerKey}|${new Date().toISOString().slice(0, 10)}`;
   if (newsCache.has(key)) {
     return newsCache.get(key);
   }
@@ -280,12 +471,12 @@ app.get('/radio/session/:id/next', async (req, res) => {
 });
 
 app.post('/news/script/generate', async (req, res) => {
-  const { era, tone = 'warm', maxChars = 180, locale = 'ja-JP' } = req.body || {};
+  const { era, tone = 'warm', maxChars = 180, locale = 'ja-JP', sourceItems, llmProvider } = req.body || {};
   const normalizedEra = normalizeEra(era);
   if (!normalizedEra) return error(res, 400, 'INVALID_INPUT', 'era is required');
 
   try {
-    const generated = await generateNewsScript({ era: normalizedEra, locale, tone, maxChars });
+    const generated = await generateNewsScript({ era: normalizedEra, locale, tone, maxChars, sourceItems, llmProvider });
     return res.json(generated);
   } catch (e) {
     return error(res, e.status || 500, e.code || 'INTERNAL_ERROR', e.message || 'internal error', e.details || {});
@@ -294,7 +485,22 @@ app.post('/news/script/generate', async (req, res) => {
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
-const port = process.env.PORT || 8080;
-app.listen(port, () => {
-  console.log(`airadio backend listening on :${port}`);
-});
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const port = process.env.PORT || 8080;
+  app.listen(port, () => {
+    console.log(`airadio backend listening on :${port}`);
+  });
+}
+
+export {
+  app,
+  buildNewsPrompt,
+  buildScriptFromSource,
+  extractGeminiText,
+  extractOpenAiText,
+  generateNewsScript,
+  normalizeMaxChars,
+  normalizeSourceItems,
+  resolveLlmProvider,
+  sanitizeGeneratedScript
+};
