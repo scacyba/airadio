@@ -19,6 +19,9 @@ jobs:
       run:
         working-directory: frontend/android
 
+    env:
+      RADIO_API_BASE_URL: ${{ secrets.RADIO_API_BASE_URL }}
+
     steps:
 
       - name: Checkout
