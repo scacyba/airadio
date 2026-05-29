@@ -15,7 +15,16 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "RADIO_API_BASE_URL", "\"${System.getenv("RADIO_API_BASE_URL") ?: "http://10.0.2.2:8080"}\"")
+
+        val radioApiBaseUrl =
+            System.getenv("RADIO_API_BASE_URL") ?: "http://10.0.2.2:8080"
+        println("DEBUG RADIO_API_BASE_URL=$radioApiBaseUrl")
+        buildConfigField(
+            "String",
+            "RADIO_API_BASE_URL",
+            "\"$radioApiBaseUrl\""
+        )
+
     }
 
     buildTypes {
