@@ -4,6 +4,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { parseNewsScriptFilters } from './newsScriptFilters.js';
+
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -539,6 +541,38 @@ app.get('/radio/session/:id/next', async (req, res) => {
         track: nextTrack
       }
     });
+  } catch (e) {
+    return error(res, e.status || 500, e.code || 'INTERNAL_ERROR', e.message || 'internal error', e.details || {});
+  }
+});
+
+
+app.get('/news-scripts', async (req, res) => {
+  try {
+    const filters = parseNewsScriptFilters(req.query);
+    const [{ getDb }, { newsScripts }, { listNewsScripts }] = await Promise.all([
+      import('./db/client.js'),
+      import('./db/schema.js'),
+      import('./newsScripts.js')
+    ]);
+    const items = await listNewsScripts(getDb(), newsScripts, filters);
+    return res.json({ items, count: items.length, filters });
+  } catch (e) {
+    return error(res, e.status || 500, e.code || 'INTERNAL_ERROR', e.message || 'internal error', e.details || {});
+  }
+});
+
+app.get('/news-scripts/random', async (req, res) => {
+  try {
+    const filters = parseNewsScriptFilters(req.query);
+    const [{ getDb }, { newsScripts }, { getRandomNewsScript }] = await Promise.all([
+      import('./db/client.js'),
+      import('./db/schema.js'),
+      import('./newsScripts.js')
+    ]);
+    const item = await getRandomNewsScript(getDb(), newsScripts, filters);
+    if (!item) return error(res, 404, 'NEWS_SCRIPT_NOT_FOUND', 'news script not found', { filters });
+    return res.json({ item, filters });
   } catch (e) {
     return error(res, e.status || 500, e.code || 'INTERNAL_ERROR', e.message || 'internal error', e.details || {});
   }
