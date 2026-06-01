@@ -1,13 +1,12 @@
 name: Android CI
 
 on:
-  push:
-    branches:
-      - main
-      - develop
-
   pull_request:
-
+    paths:
+      - 'frontend/**'
+      - '!**.md'    
+      - '!**.json'    
+  
   workflow_dispatch:
 
 jobs:
