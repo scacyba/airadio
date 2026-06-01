@@ -275,7 +275,71 @@ function buildPublicBaseUrl(req) {
   return `${req.protocol}://${req.get('host')}`;
 }
 
-async function requestTtsMp3Buffer(script) {
+function parseAudioMimeType(mimeType = '') {
+  const normalizedMimeType = String(mimeType || '').toLowerCase();
+  const rateMatch = normalizedMimeType.match(/rate=(\d+)/);
+  const rate = rateMatch ? Number(rateMatch[1]) : undefined;
+
+  if (normalizedMimeType.includes('audio/mpeg') || normalizedMimeType.includes('audio/mp3')) {
+    return { format: 'mp3', mimeType: normalizedMimeType || 'audio/mpeg', sampleRateHz: rate };
+  }
+
+  if (normalizedMimeType.includes('audio/wav') || normalizedMimeType.includes('audio/x-wav')) {
+    return { format: 'wav', mimeType: normalizedMimeType || 'audio/wav', sampleRateHz: rate };
+  }
+
+  if (normalizedMimeType.includes('audio/l16') || normalizedMimeType.includes('pcm')) {
+    return { format: 'pcm', mimeType: normalizedMimeType || 'audio/L16', sampleRateHz: rate || 24000 };
+  }
+
+  return { format: 'unknown', mimeType: normalizedMimeType, sampleRateHz: rate };
+}
+
+function writeAscii(buffer, offset, value) {
+  buffer.write(value, offset, value.length, 'ascii');
+}
+
+function wrapPcm16leAsWav(pcmBuffer, { sampleRateHz = 24000, channels = 1 } = {}) {
+  const bitsPerSample = 16;
+  const byteRate = sampleRateHz * channels * bitsPerSample / 8;
+  const blockAlign = channels * bitsPerSample / 8;
+  const header = Buffer.alloc(44);
+
+  writeAscii(header, 0, 'RIFF');
+  header.writeUInt32LE(36 + pcmBuffer.length, 4);
+  writeAscii(header, 8, 'WAVE');
+  writeAscii(header, 12, 'fmt ');
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(channels, 22);
+  header.writeUInt32LE(sampleRateHz, 24);
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE(blockAlign, 32);
+  header.writeUInt16LE(bitsPerSample, 34);
+  writeAscii(header, 36, 'data');
+  header.writeUInt32LE(pcmBuffer.length, 40);
+
+  return Buffer.concat([header, pcmBuffer]);
+}
+
+function normalizeTtsAudioBuffer(audioBuffer, mimeType) {
+  const parsedMimeType = parseAudioMimeType(mimeType);
+  if (parsedMimeType.format === 'pcm') {
+    return {
+      buffer: wrapPcm16leAsWav(audioBuffer, { sampleRateHz: parsedMimeType.sampleRateHz }),
+      format: 'wav',
+      mimeType: 'audio/wav'
+    };
+  }
+
+  if (parsedMimeType.format === 'wav') {
+    return { buffer: audioBuffer, format: 'wav', mimeType: parsedMimeType.mimeType || 'audio/wav' };
+  }
+
+  return { buffer: audioBuffer, format: 'mp3', mimeType: parsedMimeType.mimeType || 'audio/mpeg' };
+}
+
+async function requestTtsAudio(script) {
   const provider = (process.env.TTS_PROVIDER || 'gemini').trim().toLowerCase();
 
   const providers = {
@@ -328,7 +392,10 @@ async function requestTtsMp3Buffer(script) {
         throw err;
       }
 
-      return Buffer.from(audioBase64, 'base64');
+      return normalizeTtsAudioBuffer(
+        Buffer.from(audioBase64, 'base64'),
+        audioPart.inlineData?.mimeType || 'audio/L16;codec=pcm;rate=24000'
+      );
     },
     openai: async () => {
       const apiKey = process.env.OPENAI_API_KEY;
@@ -359,7 +426,7 @@ async function requestTtsMp3Buffer(script) {
         throw err;
       }
 
-      return Buffer.from(await response.arrayBuffer());
+      return { buffer: Buffer.from(await response.arrayBuffer()), format: 'mp3', mimeType: 'audio/mpeg' };
     }
   };
 
@@ -378,18 +445,25 @@ async function requestTtsMp3Buffer(script) {
 async function synthesizeNewsAudio({ newsId, script, req }) {
   const provider = (process.env.TTS_PROVIDER || 'gemini').trim().toLowerCase();
   const audioHash = createHash('sha256').update(`${provider}:${script}`).digest('hex').slice(0, 16);
-  const fileName = `${newsId}-${audioHash}.mp3`;
-  const outputPath = path.join(audioOutputDir, fileName);
+  const existingAudio = ['mp3', 'wav']
+    .map((format) => ({ format, fileName: `${newsId}-${audioHash}.${format}` }))
+    .find(({ fileName }) => fs.existsSync(path.join(audioOutputDir, fileName)));
 
-  if (!fs.existsSync(outputPath)) {
-    const audioBuffer = await requestTtsMp3Buffer(script);
-    fs.writeFileSync(outputPath, audioBuffer);
+  let format;
+  let fileName;
+  if (existingAudio) {
+    ({ format, fileName } = existingAudio);
+  } else {
+    const audio = await requestTtsAudio(script);
+    format = audio.format;
+    fileName = `${newsId}-${audioHash}.${format}`;
+    fs.writeFileSync(path.join(audioOutputDir, fileName), audio.buffer);
   }
 
   const audioBaseUrl = (process.env.AUDIO_BASE_URL?.trim() || `${buildPublicBaseUrl(req)}/audio-assets`).replace(/\/$/, '');
   return {
     url: `${audioBaseUrl}/${fileName}`,
-    format: 'mp3',
+    format,
     durationSec: 18
   };
 }
@@ -501,6 +575,9 @@ export {
   generateNewsScript,
   normalizeMaxChars,
   normalizeSourceItems,
+  normalizeTtsAudioBuffer,
+  parseAudioMimeType,
   resolveLlmProvider,
-  sanitizeGeneratedScript
+  sanitizeGeneratedScript,
+  wrapPcm16leAsWav
 };

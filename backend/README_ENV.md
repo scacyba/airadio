@@ -26,6 +26,7 @@
 - `GEMINI_NEWS_MODEL`: defaults to `GEMINI_MODEL` or `gemini-2.5-flash`
 - `GEMINI_TTS_MODEL`: defaults to `gemini-2.5-flash-preview-tts`
 - `GEMINI_TTS_VOICE`: defaults to `Kore`
+  - Gemini TTS の PCM (`audio/L16`) 応答は Backend 側で WAV に包んで配信します。
 
 ### OpenAI news/TTS options
 - `OPENAI_NEWS_MODEL`: defaults to `gpt-4.1-mini`

@@ -8,8 +8,11 @@ import {
   generateNewsScript,
   normalizeMaxChars,
   normalizeSourceItems,
+  normalizeTtsAudioBuffer,
+  parseAudioMimeType,
   resolveLlmProvider,
-  sanitizeGeneratedScript
+  sanitizeGeneratedScript,
+  wrapPcm16leAsWav
 } from '../src/server.js';
 
 test('normalizes maxChars into the supported range', () => {
@@ -96,6 +99,35 @@ test('generates a bounded template fallback script without API keys', async () =
   assert.equal(generated.generatedByFallback, true);
   assert.ok(generated.script.length <= 80);
   assert.match(generated.script, /国内景気/);
+});
+
+test('detects Gemini PCM audio mime type and sample rate', () => {
+  assert.deepEqual(
+    parseAudioMimeType('audio/L16;codec=pcm;rate=24000'),
+    { format: 'pcm', mimeType: 'audio/l16;codec=pcm;rate=24000', sampleRateHz: 24000 }
+  );
+});
+
+test('wraps PCM TTS bytes as a WAV file for ExoPlayer playback', () => {
+  const wav = wrapPcm16leAsWav(Buffer.from([0x00, 0x00, 0xff, 0x7f]), { sampleRateHz: 24000 });
+
+  assert.equal(wav.toString('ascii', 0, 4), 'RIFF');
+  assert.equal(wav.toString('ascii', 8, 12), 'WAVE');
+  assert.equal(wav.toString('ascii', 36, 40), 'data');
+  assert.equal(wav.readUInt32LE(24), 24000);
+  assert.equal(wav.readUInt32LE(40), 4);
+  assert.equal(wav.length, 48);
+});
+
+test('normalizes Gemini TTS PCM payloads to wav audio assets', () => {
+  const normalized = normalizeTtsAudioBuffer(
+    Buffer.from([0x00, 0x00, 0xff, 0x7f]),
+    'audio/L16;codec=pcm;rate=24000'
+  );
+
+  assert.equal(normalized.format, 'wav');
+  assert.equal(normalized.mimeType, 'audio/wav');
+  assert.equal(normalized.buffer.toString('ascii', 0, 4), 'RIFF');
 });
 
 function setOrDeleteEnv(name, value) {
