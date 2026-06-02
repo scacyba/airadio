@@ -14,6 +14,17 @@ import {
   sanitizeGeneratedScript,
   wrapPcm16leAsWav
 } from '../src/server.js';
+import { parseNewsScriptFilters } from '../src/newsScriptFilters.js';
+
+test('parses news script filter query parameters', () => {
+  assert.deepEqual(parseNewsScriptFilters({ year: '1995', month: '6', category: ' technology ' }), {
+    year: 1995,
+    month: 6,
+    category: 'technology'
+  });
+  assert.throws(() => parseNewsScriptFilters({ month: '13' }), /month must be an integer/);
+  assert.throws(() => parseNewsScriptFilters({ category: '   ' }), /category must not be empty/);
+});
 
 test('normalizes maxChars into the supported range', () => {
   assert.equal(normalizeMaxChars(undefined), 180);

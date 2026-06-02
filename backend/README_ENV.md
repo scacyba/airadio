@@ -45,3 +45,62 @@
 ## Notes
 - `AUDIO_BASE_URL` を設定した場合、APIレスポンスの音声URLはCDNドメインになります。
 - ただしCDNへの実ファイルアップロード経路（S3/GCS等）は別途必要です。
+
+## Neon PostgreSQL / Drizzle news script storage
+
+### Required database env var
+- `DATABASE_URL`: Neon PostgreSQL connection string.
+  - Example: `postgresql://<user>:<password>@<neon-host>/<database>?sslmode=require`
+  - The backend reads this value at runtime for `GET /news-scripts` and `GET /news-scripts/random`.
+
+### Local setup
+1. Install backend dependencies:
+   ```bash
+   cd backend
+   npm install
+   ```
+2. Set the Neon connection string:
+   ```bash
+   export DATABASE_URL="postgresql://<user>:<password>@<neon-host>/<database>?sslmode=require"
+   ```
+3. Apply Drizzle migrations:
+   ```bash
+   npm run db:migrate
+   ```
+4. Seed initial news scripts from the default JSON file (`data/news_scripts.seed.json`):
+   ```bash
+   npm run db:seed
+   ```
+   To seed another JSON file, pass the path after `--`:
+   ```bash
+   npm run db:seed -- ./data/custom-news-scripts.json
+   ```
+
+### News script APIs
+- `GET /news-scripts`: returns published news scripts.
+- `GET /news-scripts/random`: returns one random published news script.
+- Both endpoints accept optional query parameters:
+  - `year`: positive integer, e.g. `1995`
+  - `month`: `1` to `12`, e.g. `6`
+  - `category`: exact category string, e.g. `technology`
+
+### Render environment variable setup
+1. Render Dashboard > Service > **Environment**
+2. Add `DATABASE_URL=<your Neon PostgreSQL connection string>`
+3. Keep the existing LLM/TTS env vars you need (`LLM_PROVIDER`, `TTS_PROVIDER`, API keys, etc.)
+4. Deploy latest commit
+5. Run the migration command once against the same Neon database:
+   ```bash
+   cd backend && npm run db:migrate
+   ```
+6. Run the seed command when initial JSON data should be loaded:
+   ```bash
+   cd backend && npm run db:seed
+   ```
+
+### Drizzle files
+- Schema: `src/db/schema.js`
+- Drizzle config: `drizzle.config.js`
+- SQL migration: `drizzle/0000_create_news_scripts.sql`
+- Seed script: `scripts/seed-news-scripts.js`
+- Default seed JSON: `data/news_scripts.seed.json`

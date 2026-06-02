@@ -1,0 +1,44 @@
+[
+  {
+    "id": "c19700315osakaexpo",
+    "title": "大阪万博で未来技術に注目",
+    "summary": "1970年の万博で新技術が話題になりました。",
+    "type": "historical",
+    "scriptText": "大阪万博では、未来の暮らしを感じさせる展示が多くの来場者を集め、新しい時代への期待をふくらませました。",
+    "date": "1970-03-15T00:00:00.000Z",
+    "year": 1970,
+    "month": 3,
+    "category": "technology",
+    "source": "sample",
+    "sourceUrl": null,
+    "isPublished": true
+  },
+  {
+    "id": "c19871120bubbleeconomy",
+    "title": "バブル景気の到来で個人消費が拡大",
+    "summary": "1980年代後半に消費マインドが高まりました。",
+    "type": "historical",
+    "scriptText": "街には活気があふれ、少し背伸びをした買い物や外食が、時代の明るい空気を映していました。",
+    "date": "1987-11-20T00:00:00.000Z",
+    "year": 1987,
+    "month": 11,
+    "category": "economy",
+    "source": "sample",
+    "sourceUrl": null,
+    "isPublished": true
+  },
+  {
+    "id": "c19950601internet",
+    "title": "インターネット普及のはじまり",
+    "summary": "家庭向け回線の普及で情報アクセスが広がりました。",
+    "type": "historical",
+    "scriptText": "電話回線の先につながる新しい世界に、ニュースも音楽もメールも、少しずつ身近な存在になっていきました。",
+    "date": "1995-06-01T00:00:00.000Z",
+    "year": 1995,
+    "month": 6,
+    "category": "technology",
+    "source": "sample",
+    "sourceUrl": null,
+    "isPublished": true
+  }
+]
