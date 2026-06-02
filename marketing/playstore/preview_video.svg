@@ -1,0 +1,176 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" role="img" aria-labelledby="title desc">
+  <title id="title">AI Radio Google Play preview video</title>
+  <desc id="desc">A thirty second localized preview showing era selection, music playback, and interlude news text-to-speech in AI Radio.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0F172A"/>
+      <stop offset="0.55" stop-color="#12213A"/>
+      <stop offset="1" stop-color="#0B1222"/>
+    </linearGradient>
+    <linearGradient id="phone" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#111C31"/>
+      <stop offset="1" stop-color="#0F172A"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="24" stdDeviation="28" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+    <filter id="softGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="18" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <style><![CDATA[
+      :root { --duration: 30s; }
+      .jp { font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Meiryo", system-ui, sans-serif; }
+      .latin { font-family: Inter, Roboto, Arial, sans-serif; }
+      .white { fill: #F8FAFC; }
+      .muted { fill: #CBD5E1; }
+      .blue { fill: #93C5FD; }
+      .green { fill: #86EFAC; }
+      .yellow { fill: #FCD34D; }
+      .small { font-size: 26px; }
+      .body { font-size: 34px; }
+      .headline { font-size: 52px; font-weight: 800; }
+      .label { font-size: 38px; font-weight: 700; }
+      .caption { font-size: 42px; font-weight: 800; letter-spacing: .2px; }
+      .micro { font-size: 21px; }
+      .card { fill: #1F2937; }
+      .pill { fill: #334155; }
+      .pillSelected { fill: #2563EB; }
+      .buttonGreen { fill: #16A34A; }
+      .buttonGray { fill: #475569; }
+      .pulse { animation: pulse var(--duration) ease-in-out infinite; transform-origin: 960px 540px; }
+      .phoneMove { animation: phoneMove var(--duration) cubic-bezier(.2,.8,.2,1) infinite; transform-origin: 960px 560px; }
+      .tab80 { animation: tab80 var(--duration) ease-in-out infinite; }
+      .tab90 { animation: tab90 var(--duration) ease-in-out infinite; }
+      .progress { animation: progress var(--duration) linear infinite; transform-origin: 700px 460px; }
+      .playIcon { animation: playToggle var(--duration) step-end infinite; }
+      .newsHighlight { animation: newsHighlight var(--duration) ease-in-out infinite; }
+      .nextButton { animation: nextButton var(--duration) ease-in-out infinite; transform-origin: 1280px 885px; }
+      .scene1 { animation: scene1 var(--duration) ease-in-out infinite; }
+      .scene2 { animation: scene2 var(--duration) ease-in-out infinite; }
+      .scene3 { animation: scene3 var(--duration) ease-in-out infinite; }
+      .scene4 { animation: scene4 var(--duration) ease-in-out infinite; }
+      .callout1 { animation: callout1 var(--duration) ease-in-out infinite; }
+      .callout2 { animation: callout2 var(--duration) ease-in-out infinite; }
+      .callout3 { animation: callout3 var(--duration) ease-in-out infinite; }
+      .equalizer rect { animation: bars 1.2s ease-in-out infinite; transform-origin: bottom; }
+      .equalizer rect:nth-child(2) { animation-delay: .15s; }
+      .equalizer rect:nth-child(3) { animation-delay: .3s; }
+      .equalizer rect:nth-child(4) { animation-delay: .45s; }
+      .equalizer rect:nth-child(5) { animation-delay: .6s; }
+      @keyframes pulse { 0%,100%{opacity:.35;transform:scale(.96)} 50%{opacity:.75;transform:scale(1.05)} }
+      @keyframes phoneMove { 0%,12%{transform:translateX(80px) scale(.94)} 20%,75%{transform:translateX(0) scale(1)} 86%,100%{transform:translateX(-65px) scale(.94)} }
+      @keyframes tab80 { 0%,35%{fill:#2563EB} 42%,100%{fill:#334155} }
+      @keyframes tab90 { 0%,35%{fill:#334155} 42%,100%{fill:#2563EB} }
+      @keyframes progress { 0%{transform:scaleX(.08)} 44%{transform:scaleX(.72)} 52%{transform:scaleX(.05)} 100%{transform:scaleX(.78)} }
+      @keyframes playToggle { 0%,44%{opacity:1} 45%,55%{opacity:.25} 56%,100%{opacity:1} }
+      @keyframes newsHighlight { 0%,43%{opacity:.45} 48%,67%{opacity:1} 75%,100%{opacity:.62} }
+      @keyframes nextButton { 0%,39%,100%{transform:scale(1)} 44%,48%{transform:scale(1.06)} }
+      @keyframes scene1 { 0%,20%{opacity:1} 27%,100%{opacity:0} }
+      @keyframes scene2 { 0%,22%{opacity:0} 30%,54%{opacity:1} 62%,100%{opacity:0} }
+      @keyframes scene3 { 0%,55%{opacity:0} 63%,82%{opacity:1} 90%,100%{opacity:0} }
+      @keyframes scene4 { 0%,82%{opacity:0} 90%,100%{opacity:1} }
+      @keyframes callout1 { 0%,26%{opacity:1;transform:translateY(0)} 34%,100%{opacity:0;transform:translateY(-16px)} }
+      @keyframes callout2 { 0%,28%{opacity:0;transform:translateY(18px)} 36%,61%{opacity:1;transform:translateY(0)} 70%,100%{opacity:0;transform:translateY(-14px)} }
+      @keyframes callout3 { 0%,62%{opacity:0;transform:translateY(18px)} 70%,100%{opacity:1;transform:translateY(0)} }
+      @keyframes bars { 0%,100%{transform:scaleY(.35)} 50%{transform:scaleY(1)} }
+    ]]></style>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <circle class="pulse" cx="350" cy="240" r="190" fill="#2563EB" opacity=".35" filter="url(#softGlow)"/>
+  <circle class="pulse" cx="1570" cy="860" r="230" fill="#16A34A" opacity=".28" filter="url(#softGlow)"/>
+  <path d="M0 868 C360 775 632 1008 968 894 C1298 782 1544 756 1920 842 L1920 1080 L0 1080 Z" fill="#17233A" opacity=".65"/>
+
+  <g class="jp callout1">
+    <text x="110" y="205" class="headline white">年代を選ぶだけ</text>
+    <text x="112" y="270" class="body muted">70s / 80s / 90s / 00s の気分でラジオを開始</text>
+  </g>
+  <g class="jp callout2">
+    <text x="110" y="205" class="headline white">音楽と曲間ニュース</text>
+    <text x="112" y="270" class="body muted">曲の合間に、懐かしいトピックをTTSで再生</text>
+  </g>
+  <g class="jp callout3">
+    <text x="110" y="205" class="headline white">シンプル操作</text>
+    <text x="112" y="270" class="body muted">STOP と NEWS / NEXT でテンポよく聴ける</text>
+  </g>
+
+  <g class="phoneMove" filter="url(#shadow)">
+    <rect x="700" y="70" width="520" height="940" rx="52" fill="#020617"/>
+    <rect x="718" y="92" width="484" height="896" rx="40" fill="url(#phone)"/>
+    <rect x="898" y="82" width="124" height="8" rx="4" fill="#1E293B"/>
+
+    <g class="jp">
+      <text x="752" y="167" class="headline white">AI Radio</text>
+      <text x="752" y="212" class="micro muted">実際のアプリ体験をプレビュー</text>
+
+      <g>
+        <rect x="752" y="250" width="103" height="54" rx="27" class="pill"/>
+        <rect x="865" y="250" width="103" height="54" rx="27" class="tab80"/>
+        <rect x="978" y="250" width="103" height="54" rx="27" class="tab90"/>
+        <rect x="1091" y="250" width="76" height="54" rx="27" class="pill"/>
+        <text x="774" y="286" class="small white" font-weight="700">70s</text>
+        <text x="887" y="286" class="small white" font-weight="700">80s</text>
+        <text x="1000" y="286" class="small white" font-weight="700">90s</text>
+        <text x="1110" y="286" class="small white" font-weight="700">00s</text>
+      </g>
+
+      <g>
+        <rect x="752" y="335" width="416" height="232" rx="18" fill="#050505"/>
+        <circle cx="805" cy="389" r="31" fill="#334155"/>
+        <path d="M793 389 L818 374 L818 404 Z" fill="#F8FAFC"/>
+        <text x="852" y="383" class="small white" font-weight="800">Classic Mix</text>
+        <text x="852" y="416" class="micro muted">AI Radio playlist</text>
+        <g class="equalizer" transform="translate(908 451)">
+          <rect x="0" y="0" width="12" height="62" rx="6" fill="#60A5FA"/>
+          <rect x="24" y="0" width="12" height="62" rx="6" fill="#93C5FD"/>
+          <rect x="48" y="0" width="12" height="62" rx="6" fill="#60A5FA"/>
+          <rect x="72" y="0" width="12" height="62" rx="6" fill="#93C5FD"/>
+          <rect x="96" y="0" width="12" height="62" rx="6" fill="#60A5FA"/>
+        </g>
+        <rect x="785" y="532" width="350" height="5" rx="3" fill="#64748B"/>
+        <rect class="progress" x="785" y="532" width="350" height="5" rx="3" fill="#F43F5E"/>
+        <text x="785" y="512" class="micro muted">0:24 / 4:08</text>
+        <path class="playIcon" d="M952 432 L952 490 L1000 461 Z" fill="#FFFFFF"/>
+      </g>
+
+      <g>
+        <rect x="752" y="600" width="348" height="190" rx="20" class="card"/>
+        <text x="775" y="646" class="label blue">Now Playing</text>
+        <text x="775" y="690" class="small white">Era: <tspan class="scene1">1980s</tspan><tspan class="scene2 scene3 scene4">1990s</tspan></text>
+        <text x="775" y="733" class="small white">Title: Sample track</text>
+        <text x="775" y="776" class="small green">State: PLAYING_TRACK</text>
+      </g>
+
+      <g class="newsHighlight">
+        <rect x="752" y="812" width="348" height="108" rx="20" class="card"/>
+        <text x="775" y="858" class="label yellow">Interlude News TTS</text>
+        <text x="775" y="900" class="small white">年代を振り返るトピック</text>
+      </g>
+
+      <g>
+        <rect x="752" y="942" width="180" height="50" rx="25" class="buttonGray"/>
+        <rect class="nextButton buttonGreen" x="958" y="942" width="210" height="50" rx="25"/>
+        <text x="814" y="976" class="small white" font-weight="800">STOP</text>
+        <text x="988" y="976" class="small white" font-weight="800">NEWS / NEXT</text>
+      </g>
+    </g>
+  </g>
+
+  <g class="jp" transform="translate(1250 178)">
+    <rect x="0" y="0" width="510" height="430" rx="34" fill="#111827" opacity=".88"/>
+    <text x="42" y="76" class="caption blue">プレビュー内容</text>
+    <circle cx="58" cy="137" r="10" fill="#60A5FA"/><text x="82" y="149" class="body white">実アプリの主要UI</text>
+    <circle cx="58" cy="205" r="10" fill="#86EFAC"/><text x="82" y="217" class="body white">年代別の連続再生</text>
+    <circle cx="58" cy="273" r="10" fill="#FCD34D"/><text x="82" y="285" class="body white">曲間ニュースTTS</text>
+    <circle cx="58" cy="341" r="10" fill="#F97316"/><text x="82" y="353" class="body white">読みやすい字幕</text>
+  </g>
+
+  <g class="jp scene4">
+    <rect x="118" y="784" width="520" height="120" rx="34" fill="#1F2937" opacity=".95"/>
+    <text x="158" y="858" class="caption white">AI Radio — 懐かしい音楽とニュースをひとつに</text>
+  </g>
+</svg>
