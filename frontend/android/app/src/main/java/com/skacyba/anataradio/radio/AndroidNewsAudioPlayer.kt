@@ -1,4 +1,4 @@
-package com.airadio.radio
+package com.skacyba.anataradio.radio
 
 import android.content.Context
 import androidx.media3.common.MediaItem

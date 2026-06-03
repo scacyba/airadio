@@ -1,4 +1,4 @@
-package com.airadio.radio
+package com.skacyba.anataradio.radio
 
 import android.annotation.SuppressLint
 import android.webkit.JavascriptInterface

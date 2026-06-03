@@ -1,4 +1,4 @@
-package com.airadio.radio
+package com.skacyba.anataradio.radio
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
