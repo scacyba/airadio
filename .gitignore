@@ -1,3 +1,8 @@
 backend/node_modules/
 frontend/android/.gradle/
 frontend/android/app/build/
+*.jks
+*.keystore
+keystore.properties
+frontend/android/keystore.properties
+frontend/android/keys/
