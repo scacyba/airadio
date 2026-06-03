@@ -11,6 +11,9 @@
         android:usesCleartextTraffic="true"
         android:supportsRtl="true"
         android:theme="@style/Theme.Airadio">
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="${ADMOB_APP_ID}" />
         <activity
             android:name="com.skacyba.anataradio.MainActivity"
             android:exported="true">

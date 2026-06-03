@@ -16,6 +16,17 @@
 RADIO_API_BASE_URL=http://192.168.0.10:8080 ./gradlew :app:assembleDebug
 ```
 
+## AdMobバナー広告
+- 画面上部のバックエンドAPI URL表示位置に、AdMobのバナー広告を表示します。
+- デフォルトではGoogle公式のテスト用App ID / バナー広告ユニットIDを使います。公開ビルドでは必ず自分のAdMob IDに差し替えてください。
+- 現在のKotlin Gradle Plugin（1.9.24）と互換性を保つため、Google Mobile Ads SDKは `23.6.0` を使用しています。
+
+```bash
+ADMOB_APP_ID=ca-app-pub-xxxxxxxxxxxxxxxx~yyyyyyyyyy \
+ADMOB_BANNER_AD_UNIT_ID=ca-app-pub-xxxxxxxxxxxxxxxx/zzzzzzzzzz \
+./gradlew :app:assembleDebug
+```
+
 ## ビルド構成
 - AGP: `8.5.0`
 - Kotlin Gradle Plugin: `1.9.24`

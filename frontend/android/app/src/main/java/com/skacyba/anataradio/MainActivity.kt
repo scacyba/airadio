@@ -5,6 +5,7 @@ import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,6 +29,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -35,6 +37,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.AdSize
+import com.google.android.gms.ads.AdView
+import com.google.android.gms.ads.MobileAds
 import com.skacyba.anataradio.radio.AndroidNewsAudioPlayer
 import com.skacyba.anataradio.radio.HttpRadioApiClient
 import com.skacyba.anataradio.radio.RadioOrchestrator
@@ -45,6 +51,7 @@ private val EraOptions = listOf("1970s", "1980s", "1990s", "2000s")
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        MobileAds.initialize(this)
         setContent {
             AiradioTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFF0F172A)) {
@@ -93,7 +100,10 @@ fun RadioScreen() {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text("AI Radio", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-        Text("Backend: ${BuildConfig.RADIO_API_BASE_URL}", color = Color(0xFF9CA3AF), fontSize = 12.sp)
+        AdMobBanner(
+            adUnitId = BuildConfig.ADMOB_BANNER_AD_UNIT_ID,
+            modifier = Modifier.fillMaxWidth()
+        )
 
         EraSelector(
             selectedEra = uiState.selectedEra,
@@ -145,6 +155,38 @@ fun RadioScreen() {
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A))
             ) { Text("NEWS / NEXT") }
+        }
+    }
+}
+
+@Composable
+private fun AdMobBanner(adUnitId: String, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val adView = remember(adUnitId) {
+        AdView(context).apply {
+            setAdSize(AdSize.BANNER)
+            this.adUnitId = adUnitId
+            loadAd(AdRequest.Builder().build())
+        }
+    }
+
+    DisposableEffect(adView) {
+        onDispose { adView.destroy() }
+    }
+
+    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF111827)), shape = RoundedCornerShape(12.dp)) {
+        Box(
+            modifier = modifier
+                .height(66.dp)
+                .padding(8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            AndroidView(
+                factory = { adView },
+                modifier = Modifier
+                    .width(320.dp)
+                    .height(50.dp)
+            )
         }
     }
 }
