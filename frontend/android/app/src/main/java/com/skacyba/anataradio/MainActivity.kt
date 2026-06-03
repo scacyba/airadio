@@ -1,4 +1,4 @@
-package com.airadio
+package com.skacyba.anataradio
 
 import android.os.Bundle
 import android.webkit.WebView
@@ -35,10 +35,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import com.airadio.radio.AndroidNewsAudioPlayer
-import com.airadio.radio.HttpRadioApiClient
-import com.airadio.radio.RadioOrchestrator
-import com.airadio.radio.YouTubeWebViewPlayer
+import com.skacyba.anataradio.radio.AndroidNewsAudioPlayer
+import com.skacyba.anataradio.radio.HttpRadioApiClient
+import com.skacyba.anataradio.radio.RadioOrchestrator
+import com.skacyba.anataradio.radio.YouTubeWebViewPlayer
 
 private val EraOptions = listOf("1970s", "1980s", "1990s", "2000s")
 

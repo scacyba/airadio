@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.airadio"
+    namespace = "com.skacyba.anataradio"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.airadio"
+        applicationId = "com.skacyba.anataradio"
         minSdk = 24
         targetSdk = 34
         versionCode = 1

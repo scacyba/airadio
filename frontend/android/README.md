@@ -24,7 +24,7 @@ RADIO_API_BASE_URL=http://192.168.0.10:8080 ./gradlew :app:assembleDebug
 - compileSdk: `34`
 - minSdk: `24`
 - targetSdk: `34`
-- namespace / applicationId: `com.airadio`
+- namespace / applicationId: `com.skacyba.anataradio`
 
 ## 同期/ビルド手順
 ```bash

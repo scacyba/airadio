@@ -1,4 +1,4 @@
-package com.airadio.radio
+package com.skacyba.anataradio.radio
 
 import java.io.BufferedReader
 import java.io.InputStreamReader

@@ -10,7 +10,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Airadio">
         <activity
-            android:name="com.airadio.MainActivity"
+            android:name="com.skacyba.anataradio.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
