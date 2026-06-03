@@ -62,7 +62,7 @@ dependencies {
 
     implementation("androidx.webkit:webkit:1.11.0")
     implementation("androidx.media3:media3-exoplayer:1.4.1")
-    implementation("com.google.android.gms:play-services-ads:24.9.0")
+    implementation("com.google.android.gms:play-services-ads:23.6.0")
     implementation("androidx.media3:media3-ui:1.4.1")
 
     testImplementation("junit:junit:4.13.2")
