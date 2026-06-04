@@ -13,6 +13,8 @@ jobs:
 
     env:
       RADIO_API_BASE_URL: ${{ secrets.RADIO_API_BASE_URL }}
+      ADMOB_APP_ID: ${{ secrets.ADMOB_APP_ID }}
+      ADMOB_BANNER_AD_UNIT_ID: ${{ secrets.ADMOB_BANNER_AD_UNIT_ID }}
 
     steps:
       - name: Checkout
