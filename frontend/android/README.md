@@ -19,7 +19,7 @@ RADIO_API_BASE_URL=http://192.168.0.10:8080 ./gradlew :app:assembleDebug
 ## AdMobバナー広告
 - 画面上部のバックエンドAPI URL表示位置に、AdMobのバナー広告を表示します。
 - デフォルトではGoogle公式のテスト用App ID / バナー広告ユニットIDを使います。公開ビルドでは必ず自分のAdMob IDに差し替えてください。
-- 現在のKotlin Gradle Plugin（1.9.24）と互換性を保つため、Google Mobile Ads SDKは `23.6.0` を使用しています。
+- 現在のKotlin Gradle Plugin（1.9.24）と互換性を保つため、Google Mobile Ads SDKは `25.3.0` を使用しています。
 
 ```bash
 ADMOB_APP_ID=ca-app-pub-xxxxxxxxxxxxxxxx~yyyyyyyyyy \
@@ -28,14 +28,26 @@ ADMOB_BANNER_AD_UNIT_ID=ca-app-pub-xxxxxxxxxxxxxxxx/zzzzzzzzzz \
 ```
 
 ## ビルド構成
-- AGP: `8.5.0`
+- AGP: `8.5.2`
 - Kotlin Gradle Plugin: `1.9.24`
 - Gradle Wrapper: `8.7`（`gradle-wrapper.properties`）
 - JDK: **17**
-- compileSdk: `34`
+- compileSdk: `35`
 - minSdk: `24`
-- targetSdk: `34`
+- targetSdk: `35`
 - namespace / applicationId: `com.skacyba.anataradio`
+
+
+## Google Play Console アップロード要件
+- Google Play の Android 15 要件に合わせ、`compileSdk` / `targetSdk` は API 35 に設定しています。
+- 16 KB メモリページサイズ要件に対応するため、Android Gradle Plugin は 16 KB アライメントに対応した `8.5.2` 以上を使用します。
+- AAB内に含まれるSDK由来のネイティブライブラリも新しいものになるよう、Google Mobile Ads SDK を `25.3.0` に更新しています。
+- AAB を作り直す場合は、古いAABを再アップロードせず、以下のコマンドで生成した新しい `app-release.aab` を使用してください。
+
+```bash
+cd frontend/android
+./gradlew :app:bundleRelease
+```
 
 ## 同期/ビルド手順
 ```bash

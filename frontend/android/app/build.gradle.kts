@@ -16,12 +16,12 @@ if (hasReleaseKeystore) {
 
 android {
     namespace = "com.skacyba.anataradio"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.skacyba.anataradio"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -88,7 +88,7 @@ dependencies {
 
     implementation("androidx.webkit:webkit:1.11.0")
     implementation("androidx.media3:media3-exoplayer:1.4.1")
-    implementation("com.google.android.gms:play-services-ads:23.6.0")
+    implementation("com.google.android.gms:play-services-ads:25.3.0")
     implementation("androidx.media3:media3-ui:1.4.1")
 
     testImplementation("junit:junit:4.13.2")
