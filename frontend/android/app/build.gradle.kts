@@ -1,9 +1,11 @@
 import java.util.Properties
 import java.io.FileInputStream
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 val keystoreProperties = Properties()
@@ -16,12 +18,12 @@ if (hasReleaseKeystore) {
 
 android {
     namespace = "com.skacyba.anataradio"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.skacyba.anataradio"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -61,16 +63,15 @@ android {
         buildConfig = true
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.14"
-    }
-
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 
@@ -88,7 +89,7 @@ dependencies {
 
     implementation("androidx.webkit:webkit:1.11.0")
     implementation("androidx.media3:media3-exoplayer:1.4.1")
-    implementation("com.google.android.gms:play-services-ads:23.6.0")
+    implementation("com.google.android.gms:play-services-ads:25.3.0")
     implementation("androidx.media3:media3-ui:1.4.1")
 
     testImplementation("junit:junit:4.13.2")
