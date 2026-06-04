@@ -19,7 +19,7 @@ RADIO_API_BASE_URL=http://192.168.0.10:8080 ./gradlew :app:assembleDebug
 ## AdMobバナー広告
 - 画面上部のバックエンドAPI URL表示位置に、AdMobのバナー広告を表示します。
 - デフォルトではGoogle公式のテスト用App ID / バナー広告ユニットIDを使います。公開ビルドでは必ず自分のAdMob IDに差し替えてください。
-- 現在のKotlin Gradle Plugin（1.9.24）と互換性を保つため、Google Mobile Ads SDKは `25.3.0` を使用しています。
+- Google Mobile Ads SDKは `25.3.0` を使用しています。Kotlin metadata 2.3 系の依存関係を含むため、Kotlin Gradle Plugin も `2.3.21` に更新しています。
 
 ```bash
 ADMOB_APP_ID=ca-app-pub-xxxxxxxxxxxxxxxx~yyyyyyyyyy \
@@ -28,9 +28,9 @@ ADMOB_BANNER_AD_UNIT_ID=ca-app-pub-xxxxxxxxxxxxxxxx/zzzzzzzzzz \
 ```
 
 ## ビルド構成
-- AGP: `8.5.2`
-- Kotlin Gradle Plugin: `1.9.24`
-- Gradle Wrapper: `8.7`（`gradle-wrapper.properties`）
+- AGP: `8.13.2`
+- Kotlin Gradle Plugin: `2.3.21`
+- Gradle Wrapper: `8.13`（`gradle-wrapper.properties`）
 - JDK: **17**
 - compileSdk: `35`
 - minSdk: `24`
@@ -40,8 +40,9 @@ ADMOB_BANNER_AD_UNIT_ID=ca-app-pub-xxxxxxxxxxxxxxxx/zzzzzzzzzz \
 
 ## Google Play Console アップロード要件
 - Google Play の Android 15 要件に合わせ、`compileSdk` / `targetSdk` は API 35 に設定しています。
-- 16 KB メモリページサイズ要件に対応するため、Android Gradle Plugin は 16 KB アライメントに対応した `8.5.2` 以上を使用します。
+- 16 KB メモリページサイズ要件に対応し、Kotlin 2.3 系でビルドされた依存関係を扱うため、Android Gradle Plugin は `8.13.2` を使用します。
 - AAB内に含まれるSDK由来のネイティブライブラリも新しいものになるよう、Google Mobile Ads SDK を `25.3.0` に更新しています。
+- Kotlin 2.x 以降では Compose Compiler が Kotlin リポジトリに統合されているため、`org.jetbrains.kotlin.plugin.compose` を使用します。
 - AAB を作り直す場合は、古いAABを再アップロードせず、以下のコマンドで生成した新しい `app-release.aab` を使用してください。
 
 ```bash
