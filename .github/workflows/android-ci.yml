@@ -19,7 +19,7 @@ jobs:
         working-directory: frontend/android
 
     env:
-      RADIO_API_BASE_URL: ${{ secrets.RADIO_API_BASE_URL }}
+      RADIO_API_BASE_URL: ${{ secrets.RADIO_API_BASE_URL_DEV }}
 
     steps:
 
