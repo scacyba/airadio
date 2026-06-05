@@ -19,6 +19,7 @@ const audioOutputDir = path.resolve(__dirname, '../generated_audio');
 fs.mkdirSync(audioOutputDir, { recursive: true });
 
 const RADIO_NEWS_MAX_CHARS = 360;
+const RADIO_NEWS_MIN_CHARS = 120;
 const RADIO_NEWS_MIN_DURATION_SEC = 24;
 
 const SOURCE_NEWS_BY_ERA = {
@@ -68,22 +69,61 @@ function stripSurroundingQuotes(text) {
   return text.replace(/^[「『\"'\s]+|[」』\"'\s]+$/g, '');
 }
 
+function hasTerminalPunctuation(text) {
+  return /[。！？!?]$/.test(String(text || '').trim());
+}
+
+function appendTerminalPunctuation(text, maxChars) {
+  const script = String(text || '').trim();
+  if (!script || hasTerminalPunctuation(script)) return script;
+  if (script.length < maxChars) return `${script}。`;
+  return script;
+}
+
+function truncateAtSentenceBoundary(script, maxChars) {
+  if (script.length <= maxChars) return appendTerminalPunctuation(script, maxChars);
+
+  const sliced = script.slice(0, maxChars).trimEnd();
+  const minimumUsefulLength = Math.floor(maxChars * 0.5);
+  const sentenceEndIndex = Math.max(
+    sliced.lastIndexOf('。'),
+    sliced.lastIndexOf('！'),
+    sliced.lastIndexOf('？'),
+    sliced.lastIndexOf('!'),
+    sliced.lastIndexOf('?')
+  );
+  if (sentenceEndIndex >= 0) {
+    return sliced.slice(0, sentenceEndIndex + 1).trim();
+  }
+
+  const phraseEndIndex = Math.max(
+    sliced.lastIndexOf('、'),
+    sliced.lastIndexOf('，'),
+    sliced.lastIndexOf(','),
+    sliced.lastIndexOf('；'),
+    sliced.lastIndexOf(';')
+  );
+  if (phraseEndIndex >= minimumUsefulLength && phraseEndIndex + 1 < maxChars) {
+    return appendTerminalPunctuation(sliced.slice(0, phraseEndIndex).trim(), maxChars);
+  }
+
+  return appendTerminalPunctuation(sliced, maxChars);
+}
+
 function sanitizeGeneratedScript(text, maxChars) {
   const script = stripSurroundingQuotes(String(text || ''))
     .replace(/```[\s\S]*?```/g, '')
     .replace(/[\r\n\t]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-  return script.length > maxChars ? script.slice(0, maxChars) : script;
+  if (!script) return '';
+  return truncateAtSentenceBoundary(script, maxChars);
 }
 
 function buildScriptFromSource({ era, tone = 'nostalgic', maxChars = 180, sourceItems = [] }) {
   const src = sourceItems[0] ?? { title: `${era}の出来事`, summary: '当時の雰囲気を伝える話題です。', date: '' };
   const tonePrefix = tone === 'warm' ? 'やさしく振り返ると' : '懐かしく振り返ると';
-  let script = `${tonePrefix}、${src.date ? `${src.date}ごろ` : ''}${src.title}。${src.summary}`;
-  script = script.replace(/\s+/g, '');
-  if (script.length > maxChars) script = script.slice(0, maxChars);
-  return script;
+  return sanitizeGeneratedScript(`${tonePrefix}、${src.date ? `${src.date}ごろ` : ''}${src.title}。${src.summary}`, maxChars);
 }
 
 function resolveLlmProvider(requestedProvider) {
@@ -119,6 +159,7 @@ function buildNewsPrompt({ era, locale, tone, maxChars, sourceItems }) {
     `ロケール: ${locale}`,
     `口調: ${toneInstruction}`,
     `制約: ${maxChars}文字以内。ニュース原稿本文だけを出力。箇条書き、見出し、引用符、出典表記は不要。`,
+    '目安は2〜3文、120文字以上です。必ず完結した文にし、最後は句点「。」で終えてください。',
     'DBのトピックを素材に、当時の背景や聞きどころを少し補い、曲間で自然に聴けるニュース風の原稿にしてください。',
     '公開可能な範囲の私的トピックが含まれる場合があります。個人を特定しすぎる表現や過度な断定は避け、温かく一般化してください。',
     'トピック:',
@@ -274,6 +315,11 @@ async function generateNewsScript({ era, locale = 'ja-JP', tone = 'nostalgic', m
     safety: { blocked: false, categories: [] },
     generatedByFallback: !sanitizedLlmScript
   };
+}
+
+function isUsableGeneratedNewsScript(script, minChars = RADIO_NEWS_MIN_CHARS) {
+  const normalized = String(script || '').trim();
+  return normalized.length >= minChars && hasTerminalPunctuation(normalized);
 }
 
 function buildPublicBaseUrl(req) {
@@ -525,7 +571,7 @@ async function generateNewsScriptFromTopic({ topic, era, locale = 'ja-JP', tone 
 
   try {
     const generated = await generateNewsScript({ era, locale, tone, maxChars, sourceItems, llmProvider });
-    if (generated.generatedByFallback) {
+    if (generated.generatedByFallback || !isUsableGeneratedNewsScript(generated.script)) {
       return {
         newsId: topic.id,
         provider: 'template',
@@ -535,7 +581,7 @@ async function generateNewsScriptFromTopic({ topic, era, locale = 'ja-JP', tone 
         sourceItems,
         safety: { blocked: false, categories: [] },
         generatedByFallback: true,
-        fallbackReason: 'llm returned empty script'
+        fallbackReason: generated.generatedByFallback ? 'llm returned empty script' : 'llm script too short or incomplete'
       };
     }
 
@@ -716,6 +762,8 @@ export {
   extractOpenAiText,
   generateNewsScript,
   generateNewsScriptFromTopic,
+  hasTerminalPunctuation,
+  isUsableGeneratedNewsScript,
   mergeEraIntoNewsFilters,
   normalizeMaxChars,
   normalizeSourceItems,
@@ -723,6 +771,7 @@ export {
   parseAudioMimeType,
   parseEraYearRange,
   resolveLlmProvider,
+  truncateAtSentenceBoundary,
   sanitizeGeneratedScript,
   wrapPcm16leAsWav
 };

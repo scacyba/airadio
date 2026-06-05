@@ -9,6 +9,7 @@ import {
   extractOpenAiText,
   generateNewsScript,
   generateNewsScriptFromTopic,
+  isUsableGeneratedNewsScript,
   mergeEraIntoNewsFilters,
   normalizeMaxChars,
   normalizeSourceItems,
@@ -16,6 +17,7 @@ import {
   parseAudioMimeType,
   parseEraYearRange,
   resolveLlmProvider,
+  truncateAtSentenceBoundary,
   sanitizeGeneratedScript,
   wrapPcm16leAsWav
 } from '../src/server.js';
@@ -113,7 +115,15 @@ test('extracts text from OpenAI Responses and Gemini payloads', () => {
 
 test('sanitizes generated script for single-line playback', () => {
   assert.equal(sanitizeGeneratedScript('「ここで\nニュースです。」', 100), 'ここで ニュースです。');
+  assert.equal(sanitizeGeneratedScript('さて、ここで一つ、ちょっと気になるお話', 100), 'さて、ここで一つ、ちょっと気になるお話。');
   assert.equal(sanitizeGeneratedScript('1234567890', 4), '1234');
+});
+
+test('truncates long generated scripts at sentence boundaries', () => {
+  const script = '第一文です。第二文は少し長めの説明です。第三文はここで切られます。';
+  assert.equal(truncateAtSentenceBoundary(script, 14), '第一文です。');
+  assert.equal(isUsableGeneratedNewsScript('短いニュース。'), false);
+  assert.equal(isUsableGeneratedNewsScript('これは十分な長さのニュース原稿です。'.repeat(8)), true);
 });
 
 
