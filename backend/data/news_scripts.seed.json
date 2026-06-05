@@ -40,5 +40,19 @@
     "source": "sample",
     "sourceUrl": null,
     "isPublished": true
+  },
+  {
+    "id": "c20040910broadband",
+    "title": "ブロードバンドの一般化",
+    "summary": "高速通信の普及でネット動画や音楽配信が日常に近づきました。",
+    "type": "historical",
+    "scriptText": "ADSLや光回線の広がりによって、待ち時間の長かったインターネット体験は大きく変わりました。家で動画を見たり、音楽を探したりする楽しみが増え、暮らしの中にオンラインの時間が自然に入り込んでいきました。",
+    "date": "2004-09-10T00:00:00.000Z",
+    "year": 2004,
+    "month": 9,
+    "category": "technology",
+    "source": "sample",
+    "sourceUrl": null,
+    "isPublished": true
   }
 ]

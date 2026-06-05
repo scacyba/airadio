@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, lte, sql } from 'drizzle-orm';
 
 import { parseNewsScriptFilters } from './newsScriptFilters.js';
 
@@ -7,6 +7,8 @@ export { parseNewsScriptFilters };
 export function buildNewsScriptWhere(newsScripts, filters = {}) {
   const conditions = [eq(newsScripts.isPublished, true)];
   if (filters.year !== undefined) conditions.push(eq(newsScripts.year, filters.year));
+  if (filters.yearStart !== undefined) conditions.push(gte(newsScripts.year, filters.yearStart));
+  if (filters.yearEnd !== undefined) conditions.push(lte(newsScripts.year, filters.yearEnd));
   if (filters.month !== undefined) conditions.push(eq(newsScripts.month, filters.month));
   if (filters.category !== undefined) conditions.push(eq(newsScripts.category, filters.category));
   return and(...conditions);

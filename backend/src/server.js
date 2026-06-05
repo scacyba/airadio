@@ -12,12 +12,14 @@ app.use(express.urlencoded({ extended: true }));
 
 const tracksCatalog = JSON.parse(fs.readFileSync(new URL('../data/tracks_catalog.json', import.meta.url)));
 const sessions = new Map();
-const newsCache = new Map();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const audioOutputDir = path.resolve(__dirname, '../generated_audio');
 fs.mkdirSync(audioOutputDir, { recursive: true });
+
+const RADIO_NEWS_MAX_CHARS = 360;
+const RADIO_NEWS_MIN_DURATION_SEC = 24;
 
 const SOURCE_NEWS_BY_ERA = {
   '1970s': [{ title: '大阪万博で未来技術に注目', summary: '1970年の万博で新技術が話題に。', date: '1970-03-15' }],
@@ -45,7 +47,7 @@ function normalizeEra(era) {
 function normalizeMaxChars(maxChars) {
   const parsed = Number(maxChars);
   if (!Number.isFinite(parsed)) return 180;
-  return Math.min(300, Math.max(40, Math.trunc(parsed)));
+  return Math.min(500, Math.max(40, Math.trunc(parsed)));
 }
 
 function normalizeSourceItems(sourceItems) {
@@ -54,7 +56,9 @@ function normalizeSourceItems(sourceItems) {
     .map((item) => ({
       title: String(item?.title || '').trim(),
       summary: String(item?.summary || '').trim(),
-      date: String(item?.date || '').trim()
+      detail: String(item?.detail || item?.scriptText || '').trim(),
+      date: String(item?.date || '').trim(),
+      category: String(item?.category || '').trim()
     }))
     .filter((item) => item.title && item.summary)
     .slice(0, 3);
@@ -106,7 +110,7 @@ function buildNewsPrompt({ era, locale, tone, maxChars, sourceItems }) {
     ? 'やさしく親しみやすい口調'
     : '懐かしさを感じるラジオDJ風の口調';
   const sources = sourceItems.map((item, index) => (
-    `${index + 1}. date=${item.date || 'unknown'} title=${item.title} summary=${item.summary}`
+    `${index + 1}. date=${item.date || 'unknown'} category=${item.category || 'unknown'} title=${item.title} summary=${item.summary}${item.detail ? ` detail=${item.detail}` : ''}`
   )).join('\n');
 
   return [
@@ -115,8 +119,9 @@ function buildNewsPrompt({ era, locale, tone, maxChars, sourceItems }) {
     `ロケール: ${locale}`,
     `口調: ${toneInstruction}`,
     `制約: ${maxChars}文字以内。ニュース原稿本文だけを出力。箇条書き、見出し、引用符、出典表記は不要。`,
-    '固定ニュースソースの事実だけを使い、断定しすぎず短く自然な一文から二文にしてください。',
-    'ソース:',
+    'DBのトピックを素材に、当時の背景や聞きどころを少し補い、曲間で自然に聴けるニュース風の原稿にしてください。',
+    '公開可能な範囲の私的トピックが含まれる場合があります。個人を特定しすぎる表現や過度な断定は避け、温かく一般化してください。',
+    'トピック:',
     sources
   ].join('\n');
 }
@@ -157,7 +162,7 @@ async function callOpenAiForNews(prompt) {
     body: JSON.stringify({
       model,
       input: prompt,
-      max_output_tokens: 220,
+      max_output_tokens: 420,
       temperature: 0.7
     })
   });
@@ -192,7 +197,7 @@ async function callGeminiForNews(prompt) {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 220
+        maxOutputTokens: 420
       }
     })
   });
@@ -466,32 +471,133 @@ async function synthesizeNewsAudio({ newsId, script, req }) {
   return {
     url: `${audioBaseUrl}/${fileName}`,
     format,
-    durationSec: 18
+    durationSec: estimateTtsDurationSec(script)
   };
 }
 
-async function getOrCreateCachedNews({ era, locale, tone, maxChars, req }) {
-  const providerKey = process.env.LLM_PROVIDER || 'auto';
-  const key = `${era}|${locale}|${tone}|${maxChars}|${providerKey}|${new Date().toISOString().slice(0, 10)}`;
-  if (newsCache.has(key)) {
-    return newsCache.get(key);
+function parseEraYearRange(era) {
+  const match = String(era || '').trim().match(/^(\d{4})s$/);
+  if (!match) return null;
+  const start = Number(match[1]);
+  return { yearStart: start, yearEnd: start + 9 };
+}
+
+function mergeEraIntoNewsFilters(filters = {}, era) {
+  const range = parseEraYearRange(era);
+  if (!range || filters.year !== undefined || filters.yearStart !== undefined || filters.yearEnd !== undefined) {
+    return filters;
+  }
+  return { ...filters, ...range };
+}
+
+function estimateTtsDurationSec(script) {
+  const charCount = String(script || '').replace(/\s+/g, '').length;
+  return Math.max(RADIO_NEWS_MIN_DURATION_SEC, Math.ceil(charCount / 5));
+}
+
+function buildDbNewsInterludeScript(newsScript, era, maxChars = RADIO_NEWS_MAX_CHARS) {
+  const dateLabel = [
+    newsScript.year ? `${newsScript.year}年` : '',
+    newsScript.month ? `${newsScript.month}月` : ''
+  ].join('');
+  const intro = `${era}から${dateLabel ? `、${dateLabel}` : ''}のニュースです。${newsScript.title}。`;
+  const bodyParts = [newsScript.summary, newsScript.scriptText]
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+    .filter((part, index, all) => all.indexOf(part) === index);
+  const outro = '当時の空気を思い浮かべながら、次の曲へまいりましょう。';
+  return sanitizeGeneratedScript([intro, ...bodyParts, outro].join(' '), maxChars);
+}
+
+function buildDbTopicSourceItem(topic) {
+  return {
+    title: topic.title,
+    summary: topic.summary,
+    detail: topic.scriptText,
+    date: topic.date ? topic.date.slice(0, 10) : '',
+    category: topic.category || topic.type || ''
+  };
+}
+
+async function generateNewsScriptFromTopic({ topic, era, locale = 'ja-JP', tone = 'nostalgic', maxChars = RADIO_NEWS_MAX_CHARS, llmProvider }) {
+  const sourceItems = [buildDbTopicSourceItem(topic)];
+  const fallbackScript = buildDbNewsInterludeScript(topic, era, maxChars);
+
+  try {
+    const generated = await generateNewsScript({ era, locale, tone, maxChars, sourceItems, llmProvider });
+    if (generated.generatedByFallback) {
+      return {
+        newsId: topic.id,
+        provider: 'template',
+        model: 'db-topic-fallback',
+        script: fallbackScript,
+        charCount: fallbackScript.length,
+        sourceItems,
+        safety: { blocked: false, categories: [] },
+        generatedByFallback: true,
+        fallbackReason: 'llm returned empty script'
+      };
+    }
+
+    return {
+      ...generated,
+      newsId: topic.id,
+      sourceItems,
+      fallbackReason: null
+    };
+  } catch (e) {
+    if (e.code !== 'LLM_PROVIDER_UNAVAILABLE' && e.code !== 'SAFETY_BLOCKED') throw e;
+    return {
+      newsId: topic.id,
+      provider: 'template',
+      model: 'db-topic-fallback',
+      script: fallbackScript,
+      charCount: fallbackScript.length,
+      sourceItems,
+      safety: { blocked: false, categories: [] },
+      generatedByFallback: true,
+      fallbackReason: e.code
+    };
+  }
+}
+
+async function getRandomDbNewsForEra({ era, req }) {
+  const filters = mergeEraIntoNewsFilters({}, era);
+  const [{ getDb }, { newsScripts }, { getRandomNewsScript }] = await Promise.all([
+    import('./db/client.js'),
+    import('./db/schema.js'),
+    import('./newsScripts.js')
+  ]);
+  const item = await getRandomNewsScript(getDb(), newsScripts, filters);
+  if (!item) {
+    const err = new Error('news script not found for era');
+    err.status = 404;
+    err.code = 'NEWS_SCRIPT_NOT_FOUND';
+    err.details = { era, filters };
+    throw err;
   }
 
-  const news = await generateNewsScript({ era, locale, tone, maxChars });
-  const audio = await synthesizeNewsAudio({ newsId: news.newsId, script: news.script, req });
-  const payload = {
-    newsId: news.newsId,
-    headline: `${era}を振り返るトピック`,
-    script: news.script,
-    charCount: news.charCount,
+  const generated = await generateNewsScriptFromTopic({ topic: item, era, maxChars: RADIO_NEWS_MAX_CHARS });
+  const audio = await synthesizeNewsAudio({ newsId: item.id, script: generated.script, req });
+  return {
+    newsId: item.id,
+    headline: item.title,
+    script: generated.script,
+    charCount: generated.charCount,
     audio,
-    provider: news.provider,
-    model: news.model
+    provider: generated.provider,
+    model: generated.model,
+    generatedByFallback: generated.generatedByFallback,
+    source: {
+      type: item.type,
+      year: item.year,
+      month: item.month,
+      category: item.category,
+      source: item.source,
+      sourceUrl: item.sourceUrl
+    }
   };
-  newsCache.set(key, payload);
-  return payload;
 }
-
 app.use('/audio-assets', express.static(audioOutputDir, { fallthrough: false }));
 
 app.post('/radio/session/create', (req, res) => {
@@ -514,7 +620,7 @@ app.post('/radio/session/create', (req, res) => {
     sessionId,
     createdAt: session.createdAt,
     playback: { track: queue[0], news: null },
-    policy: { maxNewsChars: 180, safeMode: true }
+    policy: { maxNewsChars: RADIO_NEWS_MAX_CHARS, safeMode: true }
   });
 });
 
@@ -532,7 +638,7 @@ app.get('/radio/session/:id/next', async (req, res) => {
   const nextTrack = session.queue[session.index];
 
   try {
-    const news = await getOrCreateCachedNews({ era: session.era, locale: session.locale, tone: 'nostalgic', maxChars: 180, req });
+    const news = await getRandomDbNewsForEra({ era: session.era, req });
     return res.json({
       sessionId: session.sessionId,
       sequence: session.index + 1,
@@ -549,7 +655,7 @@ app.get('/radio/session/:id/next', async (req, res) => {
 
 app.get('/news-scripts', async (req, res) => {
   try {
-    const filters = parseNewsScriptFilters(req.query);
+    const filters = mergeEraIntoNewsFilters(parseNewsScriptFilters(req.query), req.query.era);
     const [{ getDb }, { newsScripts }, { listNewsScripts }] = await Promise.all([
       import('./db/client.js'),
       import('./db/schema.js'),
@@ -564,7 +670,7 @@ app.get('/news-scripts', async (req, res) => {
 
 app.get('/news-scripts/random', async (req, res) => {
   try {
-    const filters = parseNewsScriptFilters(req.query);
+    const filters = mergeEraIntoNewsFilters(parseNewsScriptFilters(req.query), req.query.era);
     const [{ getDb }, { newsScripts }, { getRandomNewsScript }] = await Promise.all([
       import('./db/client.js'),
       import('./db/schema.js'),
@@ -602,15 +708,20 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 
 export {
   app,
+  buildDbNewsInterludeScript,
+  buildDbTopicSourceItem,
   buildNewsPrompt,
   buildScriptFromSource,
   extractGeminiText,
   extractOpenAiText,
   generateNewsScript,
+  generateNewsScriptFromTopic,
+  mergeEraIntoNewsFilters,
   normalizeMaxChars,
   normalizeSourceItems,
   normalizeTtsAudioBuffer,
   parseAudioMimeType,
+  parseEraYearRange,
   resolveLlmProvider,
   sanitizeGeneratedScript,
   wrapPcm16leAsWav

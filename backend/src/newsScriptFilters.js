@@ -1,16 +1,36 @@
+function parsePositiveInteger(value, fieldName) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    const err = new Error(`${fieldName} must be a positive integer`);
+    err.status = 400;
+    err.code = 'INVALID_QUERY';
+    err.details = { [fieldName]: value };
+    throw err;
+  }
+  return parsed;
+}
+
 export function parseNewsScriptFilters(query = {}) {
   const filters = {};
 
   if (query.year !== undefined) {
-    const year = Number(query.year);
-    if (!Number.isInteger(year) || year < 1) {
-      const err = new Error('year must be a positive integer');
-      err.status = 400;
-      err.code = 'INVALID_QUERY';
-      err.details = { year: query.year };
-      throw err;
-    }
-    filters.year = year;
+    filters.year = parsePositiveInteger(query.year, 'year');
+  }
+
+  if (query.yearStart !== undefined) {
+    filters.yearStart = parsePositiveInteger(query.yearStart, 'yearStart');
+  }
+
+  if (query.yearEnd !== undefined) {
+    filters.yearEnd = parsePositiveInteger(query.yearEnd, 'yearEnd');
+  }
+
+  if (filters.yearStart !== undefined && filters.yearEnd !== undefined && filters.yearStart > filters.yearEnd) {
+    const err = new Error('yearStart must be less than or equal to yearEnd');
+    err.status = 400;
+    err.code = 'INVALID_QUERY';
+    err.details = { yearStart: query.yearStart, yearEnd: query.yearEnd };
+    throw err;
   }
 
   if (query.month !== undefined) {
