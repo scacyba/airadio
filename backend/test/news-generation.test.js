@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   buildNewsPrompt,
+  calculateNewsOutputTokenBudget,
   extractGeminiText,
   extractOpenAiText,
   generateNewsScript,
@@ -31,6 +32,14 @@ test('normalizes maxChars into the supported range', () => {
   assert.equal(normalizeMaxChars(20), 40);
   assert.equal(normalizeMaxChars(301), 300);
   assert.equal(normalizeMaxChars('120.8'), 120);
+});
+
+
+test('calculates output token budget from maxChars with a minimum floor', () => {
+  assert.equal(calculateNewsOutputTokenBudget(40), 256);
+  assert.equal(calculateNewsOutputTokenBudget(102), 256);
+  assert.equal(calculateNewsOutputTokenBudget(103), 258);
+  assert.equal(calculateNewsOutputTokenBudget(300), 750);
 });
 
 test('normalizes custom source items and drops incomplete entries', () => {
