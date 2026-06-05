@@ -59,11 +59,15 @@ test('calculates Gemini thinking budget with a zero default and env override bou
 test('normalizes custom source items and drops incomplete entries', () => {
   assert.deepEqual(
     normalizeSourceItems([
-      { title: '  国内景気  ', summary: '  個人消費が拡大  ', date: '1987-11-20' },
+      { title: '  国内景気  ', summary: '  個人消費が拡大  ', detail: '  小売業も伸びました  ', date: '1987-11-20' },
+      { title: 'detail only', detail: 'summary がない場合も detail を保持' },
       { title: 'summary missing' },
       { summary: 'title missing' }
     ]),
-    [{ title: '国内景気', summary: '個人消費が拡大', date: '1987-11-20' }]
+    [
+      { title: '国内景気', summary: '個人消費が拡大', detail: '小売業も伸びました', date: '1987-11-20' },
+      { title: 'detail only', summary: '', detail: 'summary がない場合も detail を保持', date: '' }
+    ]
   );
 });
 
@@ -95,11 +99,17 @@ test('builds a constrained Japanese radio news prompt', () => {
     locale: 'ja-JP',
     tone: 'warm',
     maxChars: 120,
-    sourceItems: [{ title: 'インターネット普及', summary: '家庭向け回線が広がった', date: '1995-06-01' }]
+    sourceItems: [{
+      title: 'インターネット普及',
+      summary: '家庭向け回線が広がった',
+      detail: '学校や家庭でもウェブ閲覧が身近になりました。',
+      date: '1995-06-01'
+    }]
   });
 
   assert.match(prompt, /120文字以内/);
   assert.match(prompt, /インターネット普及/);
+  assert.match(prompt, /detail=学校や家庭でもウェブ閲覧が身近になりました。/);
   assert.match(prompt, /ニュース原稿本文だけ/);
 });
 

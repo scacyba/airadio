@@ -54,9 +54,10 @@ function normalizeSourceItems(sourceItems) {
     .map((item) => ({
       title: String(item?.title || '').trim(),
       summary: String(item?.summary || '').trim(),
+      detail: String(item?.detail || '').trim(),
       date: String(item?.date || '').trim()
     }))
-    .filter((item) => item.title && item.summary)
+    .filter((item) => item.title && (item.summary || item.detail))
     .slice(0, 3);
 }
 
@@ -76,7 +77,8 @@ function sanitizeGeneratedScript(text, maxChars) {
 function buildScriptFromSource({ era, tone = 'nostalgic', maxChars = 180, sourceItems = [] }) {
   const src = sourceItems[0] ?? { title: `${era}の出来事`, summary: '当時の雰囲気を伝える話題です。', date: '' };
   const tonePrefix = tone === 'warm' ? 'やさしく振り返ると' : '懐かしく振り返ると';
-  let script = `${tonePrefix}、${src.date ? `${src.date}ごろ` : ''}${src.title}。${src.summary}`;
+  const sourceText = src.summary || src.detail || '当時の雰囲気を伝える話題です。';
+  let script = `${tonePrefix}、${src.date ? `${src.date}ごろ` : ''}${src.title}。${sourceText}`;
   script = script.replace(/\s+/g, '');
   if (script.length > maxChars) script = script.slice(0, maxChars);
   return script;
@@ -126,9 +128,10 @@ function buildNewsPrompt({ era, locale, tone, maxChars, sourceItems }) {
   const toneInstruction = tone === 'warm'
     ? 'やさしく親しみやすい口調'
     : '懐かしさを感じるラジオDJ風の口調';
-  const sources = sourceItems.map((item, index) => (
-    `${index + 1}. date=${item.date || 'unknown'} title=${item.title} summary=${item.summary}`
-  )).join('\n');
+  const sources = sourceItems.map((item, index) => {
+    const detail = item.detail ? ` detail=${item.detail}` : '';
+    return `${index + 1}. date=${item.date || 'unknown'} title=${item.title} summary=${item.summary || 'none'}${detail}`;
+  }).join('\n');
 
   return [
     'あなたは日本語ラジオ番組の曲間ニュース原稿ライターです。',
