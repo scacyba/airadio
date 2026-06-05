@@ -116,18 +116,18 @@ class RadioOrchestrator(
 
     private fun fetchNextAndPlayNews() {
         val sid = sessionId ?: return
-        val afterTrackId = currentTrack?.trackId ?: return
+        if (currentTrack == null) return
         state = PlaybackState.FETCHING_NEXT
         setState(uiState.copy(playbackState = PlaybackState.FETCHING_NEXT, statusMessage = "次の曲とニュースを取得中..."))
 
         scope.launch {
             val nextUnit = runCatching {
-                withContext(Dispatchers.IO) { radioApiClient.next(sid, afterTrackId) }
+                withContext(Dispatchers.IO) { radioApiClient.next(sid) }
             }.getOrElse { firstError ->
                 state = PlaybackState.RECOVERING
                 setState(uiState.copy(playbackState = PlaybackState.RECOVERING, statusMessage = "再同期しています..."))
                 runCatching {
-                    withContext(Dispatchers.IO) { radioApiClient.next(sid, currentTrack?.trackId ?: afterTrackId) }
+                    withContext(Dispatchers.IO) { radioApiClient.next(sid) }
                 }.getOrElse { secondError ->
                     state = PlaybackState.ERROR
                     setState(

@@ -3,7 +3,6 @@ package com.skacyba.anataradio.radio
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
-import java.net.URLEncoder
 import java.net.URL
 import org.json.JSONObject
 
@@ -36,7 +35,7 @@ data class NextPlaybackUnit(
 
 interface RadioApiClient {
     suspend fun createSession(era: String): CreatedSession
-    suspend fun next(sessionId: String, afterTrackId: String): NextPlaybackUnit
+    suspend fun next(sessionId: String): NextPlaybackUnit
 }
 
 class HttpRadioApiClient(
@@ -60,11 +59,10 @@ class HttpRadioApiClient(
         )
     }
 
-    override suspend fun next(sessionId: String, afterTrackId: String): NextPlaybackUnit {
-        val encodedTrackId = URLEncoder.encode(afterTrackId, "UTF-8")
+    override suspend fun next(sessionId: String): NextPlaybackUnit {
         val response = requestJson(
             method = "GET",
-            path = "/radio/session/$sessionId/next?afterTrackId=$encodedTrackId"
+            path = "/radio/session/$sessionId/next"
         )
         val playbackUnit = response.getJSONObject("playbackUnit")
         val news = playbackUnit.getJSONObject("news")

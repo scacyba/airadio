@@ -676,9 +676,7 @@ app.get('/radio/session/:id/next', async (req, res) => {
 
   const afterTrackId = req.query.afterTrackId;
   const current = session.queue[session.index];
-  if (afterTrackId && afterTrackId !== current.trackId) {
-    return error(res, 409, 'SESSION_STATE_MISMATCH', 'afterTrackId mismatch', { expected: current.trackId, actual: afterTrackId });
-  }
+  const resynced = Boolean(afterTrackId && afterTrackId !== current.trackId);
 
   session.index = (session.index + 1) % session.queue.length;
   const nextTrack = session.queue[session.index];
@@ -688,6 +686,7 @@ app.get('/radio/session/:id/next', async (req, res) => {
     return res.json({
       sessionId: session.sessionId,
       sequence: session.index + 1,
+      resynced,
       playbackUnit: {
         news,
         track: nextTrack
