@@ -105,6 +105,23 @@ function calculateNewsOutputTokenBudget(maxChars) {
   return Math.max(256, Math.ceil(maxChars * 2.5));
 }
 
+function calculateGeminiNewsThinkingBudget(rawBudget = process.env.GEMINI_NEWS_THINKING_BUDGET) {
+  if (rawBudget === undefined || rawBudget === '') return 0;
+  const parsed = Number(rawBudget);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.max(-1, Math.trunc(parsed));
+}
+
+function supportsGeminiThinkingConfig(model) {
+  return String(model || '').includes('2.5') || process.env.GEMINI_NEWS_THINKING_BUDGET !== undefined;
+}
+
+function isLlmNewsResultTruncated(result) {
+  if (result?.finishReason === 'MAX_TOKENS') return true;
+  if (result?.status === 'incomplete') return true;
+  return result?.incompleteReason === 'max_output_tokens';
+}
+
 function buildNewsPrompt({ era, locale, tone, maxChars, sourceItems }) {
   const toneInstruction = tone === 'warm'
     ? 'やさしく親しみやすい口調'
@@ -177,7 +194,14 @@ async function callOpenAiForNews(prompt, maxChars) {
   }
 
   const payload = await response.json();
-  return { provider: 'openai', model, text: extractOpenAiText(payload), raw: payload };
+  return {
+    provider: 'openai',
+    model,
+    text: extractOpenAiText(payload),
+    status: payload?.status,
+    incompleteReason: payload?.incomplete_details?.reason,
+    raw: payload
+  };
 }
 
 async function callGeminiForNews(prompt, maxChars) {
@@ -191,15 +215,22 @@ async function callGeminiForNews(prompt, maxChars) {
 
   const model = process.env.GEMINI_NEWS_MODEL || process.env.GEMINI_MODEL || 'gemini-2.5-flash';
   const outputTokenBudget = calculateNewsOutputTokenBudget(maxChars);
+  const generationConfig = {
+    temperature: 0.7,
+    maxOutputTokens: outputTokenBudget
+  };
+  if (supportsGeminiThinkingConfig(model)) {
+    generationConfig.thinkingConfig = {
+      thinkingBudget: calculateGeminiNewsThinkingBudget()
+    };
+  }
+
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: outputTokenBudget
-      }
+      generationConfig
     })
   });
 
@@ -221,7 +252,13 @@ async function callGeminiForNews(prompt, maxChars) {
     throw err;
   }
 
-  return { provider: 'gemini', model, text: extractGeminiText(payload), raw: payload };
+  return {
+    provider: 'gemini',
+    model,
+    text: extractGeminiText(payload),
+    finishReason: payload?.candidates?.[0]?.finishReason,
+    raw: payload
+  };
 }
 
 async function requestLlmNewsScript({ provider, prompt, maxChars }) {
@@ -254,7 +291,9 @@ async function generateNewsScript({ era, locale = 'ja-JP', tone = 'nostalgic', m
   const prompt = buildNewsPrompt({ era, locale, tone, maxChars: resolvedMaxChars, sourceItems: resolvedSourceItems });
   const llmResult = await requestLlmNewsScript({ provider, prompt, maxChars: resolvedMaxChars });
   const templateScript = buildScriptFromSource({ era, tone, maxChars: resolvedMaxChars, sourceItems: resolvedSourceItems });
-  const sanitizedLlmScript = sanitizeGeneratedScript(llmResult.text, resolvedMaxChars);
+  const sanitizedLlmScript = isLlmNewsResultTruncated(llmResult)
+    ? ''
+    : sanitizeGeneratedScript(llmResult.text, resolvedMaxChars);
   const script = sanitizedLlmScript || templateScript;
 
   if (script.length > resolvedMaxChars) {
@@ -609,6 +648,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 export {
   app,
   buildNewsPrompt,
+  calculateGeminiNewsThinkingBudget,
   calculateNewsOutputTokenBudget,
   buildScriptFromSource,
   extractGeminiText,

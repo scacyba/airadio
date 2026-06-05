@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   buildNewsPrompt,
+  calculateGeminiNewsThinkingBudget,
   calculateNewsOutputTokenBudget,
   extractGeminiText,
   extractOpenAiText,
@@ -34,12 +35,25 @@ test('normalizes maxChars into the supported range', () => {
   assert.equal(normalizeMaxChars('120.8'), 120);
 });
 
-
 test('calculates output token budget from maxChars with a minimum floor', () => {
   assert.equal(calculateNewsOutputTokenBudget(40), 256);
   assert.equal(calculateNewsOutputTokenBudget(102), 256);
   assert.equal(calculateNewsOutputTokenBudget(103), 258);
   assert.equal(calculateNewsOutputTokenBudget(300), 750);
+});
+
+test('calculates Gemini thinking budget with a zero default and env override bounds', () => {
+  const originalThinkingBudget = process.env.GEMINI_NEWS_THINKING_BUDGET;
+  try {
+    delete process.env.GEMINI_NEWS_THINKING_BUDGET;
+    assert.equal(calculateGeminiNewsThinkingBudget(), 0);
+    assert.equal(calculateGeminiNewsThinkingBudget(''), 0);
+    assert.equal(calculateGeminiNewsThinkingBudget('12.8'), 12);
+    assert.equal(calculateGeminiNewsThinkingBudget('-2'), -1);
+    assert.equal(calculateGeminiNewsThinkingBudget('invalid'), 0);
+  } finally {
+    setOrDeleteEnv('GEMINI_NEWS_THINKING_BUDGET', originalThinkingBudget);
+  }
 });
 
 test('normalizes custom source items and drops incomplete entries', () => {
@@ -121,6 +135,114 @@ test('generates a bounded template fallback script without API keys', async () =
   assert.match(generated.script, /国内景気/);
 });
 
+test('sends maxChars-based token budget and disables Gemini thinking by default', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalGeminiKey = process.env.GEMINI_API_KEY;
+  const originalThinkingBudget = process.env.GEMINI_NEWS_THINKING_BUDGET;
+  let requestBody;
+
+  try {
+    process.env.GEMINI_API_KEY = 'gemini-key';
+    delete process.env.GEMINI_NEWS_THINKING_BUDGET;
+    globalThis.fetch = async (_url, options) => {
+      requestBody = JSON.parse(options.body);
+      return jsonResponse({
+        candidates: [{
+          content: { parts: [{ text: '岡山大学への入学をきっかけに、将来につながる学びが始まりました。' }] },
+          finishReason: 'STOP'
+        }]
+      });
+    };
+
+    const generated = await generateNewsScript({
+      era: '1990s',
+      locale: 'ja-JP',
+      tone: 'warm',
+      maxChars: 180,
+      llmProvider: 'gemini',
+      sourceItems: [{ title: '岡山大学入学', summary: '専門分野を学びました。', date: '1995-04-01' }]
+    });
+
+    assert.equal(requestBody.generationConfig.maxOutputTokens, 450);
+    assert.deepEqual(requestBody.generationConfig.thinkingConfig, { thinkingBudget: 0 });
+    assert.equal(generated.provider, 'gemini');
+    assert.equal(generated.generatedByFallback, false);
+    assert.ok(generated.script.length <= 180);
+  } finally {
+    globalThis.fetch = originalFetch;
+    setOrDeleteEnv('GEMINI_API_KEY', originalGeminiKey);
+    setOrDeleteEnv('GEMINI_NEWS_THINKING_BUDGET', originalThinkingBudget);
+  }
+});
+
+test('sends maxChars-based token budget to OpenAI requests', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalOpenAiKey = process.env.OPENAI_API_KEY;
+  let requestBody;
+
+  try {
+    process.env.OPENAI_API_KEY = 'openai-key';
+    globalThis.fetch = async (_url, options) => {
+      requestBody = JSON.parse(options.body);
+      return jsonResponse({ output_text: '岡山大学への入学をきっかけに、将来につながる学びが始まりました。' });
+    };
+
+    const generated = await generateNewsScript({
+      era: '1990s',
+      locale: 'ja-JP',
+      tone: 'warm',
+      maxChars: 180,
+      llmProvider: 'openai',
+      sourceItems: [{ title: '岡山大学入学', summary: '専門分野を学びました。', date: '1995-04-01' }]
+    });
+
+    assert.equal(requestBody.max_output_tokens, 450);
+    assert.equal(generated.provider, 'openai');
+    assert.equal(generated.generatedByFallback, false);
+    assert.ok(generated.script.length <= 180);
+  } finally {
+    globalThis.fetch = originalFetch;
+    setOrDeleteEnv('OPENAI_API_KEY', originalOpenAiKey);
+  }
+});
+
+test('falls back instead of using Gemini text truncated by max tokens', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalGeminiKey = process.env.GEMINI_API_KEY;
+
+  try {
+    process.env.GEMINI_API_KEY = 'gemini-key';
+    globalThis.fetch = async () => jsonResponse({
+      candidates: [{
+        content: { parts: [{ text: 'さて、ここで一つ、新しい学' }] },
+        finishReason: 'MAX_TOKENS'
+      }],
+      usageMetadata: {
+        candidatesTokenCount: 16,
+        thoughtsTokenCount: 430
+      }
+    });
+
+    const generated = await generateNewsScript({
+      era: '1990s',
+      locale: 'ja-JP',
+      tone: 'warm',
+      maxChars: 180,
+      llmProvider: 'gemini',
+      sourceItems: [{ title: '岡山大学入学', summary: '専門分野を学びました。', date: '1995-04-01' }]
+    });
+
+    assert.equal(generated.provider, 'gemini');
+    assert.equal(generated.generatedByFallback, true);
+    assert.notEqual(generated.script, 'さて、ここで一つ、新しい学');
+    assert.match(generated.script, /岡山大学入学/);
+    assert.ok(generated.script.length <= 180);
+  } finally {
+    globalThis.fetch = originalFetch;
+    setOrDeleteEnv('GEMINI_API_KEY', originalGeminiKey);
+  }
+});
+
 test('detects Gemini PCM audio mime type and sample rate', () => {
   assert.deepEqual(
     parseAudioMimeType('audio/L16;codec=pcm;rate=24000'),
@@ -149,6 +271,13 @@ test('normalizes Gemini TTS PCM payloads to wav audio assets', () => {
   assert.equal(normalized.mimeType, 'audio/wav');
   assert.equal(normalized.buffer.toString('ascii', 0, 4), 'RIFF');
 });
+
+function jsonResponse(payload) {
+  return new Response(JSON.stringify(payload), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
 
 function setOrDeleteEnv(name, value) {
   if (value === undefined) {
