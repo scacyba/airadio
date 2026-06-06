@@ -46,7 +46,7 @@ import com.skacyba.anataradio.radio.HttpRadioApiClient
 import com.skacyba.anataradio.radio.RadioOrchestrator
 import com.skacyba.anataradio.radio.YouTubeWebViewPlayer
 
-private val EraOptions = listOf("1970s", "1980s", "1990s", "2000s")
+private val EraOptions = listOf("1960s", "1970s", "1980s", "1990s")
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

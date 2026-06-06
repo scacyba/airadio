@@ -58,7 +58,7 @@ cd frontend/android
 ```
 
 ## 実装済みのE2E接続
-- 年代選択UI（1970s/1980s/1990s/2000s）から `POST /radio/session/create` を呼び、最初の1曲を取得します。
+- 年代選択UI（1960s/1970s/1980s/1990s）から `POST /radio/session/create` を呼び、最初の1曲を取得します。
 - 取得した `videoId` を `WebView` 内の YouTube IFrame Playerへ渡して再生します。ローカルHTMLは `loadDataWithBaseURL("https://airadio.local/")` で読み込み、YouTube埋め込みに必要なReferer/originが欠落してError 153にならないようにしています。
 - 曲終了または `NEWS / NEXT` ボタンで `GET /radio/session/:id/next` を呼び、年代ニュース原稿とTTS音声URLを取得します。
 - ニュースTTS音声を ExoPlayerで再生し、完了後に次曲をYouTubeで再生します。

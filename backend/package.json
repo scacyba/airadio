@@ -8,7 +8,10 @@
     "test": "node --test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:seed": "node scripts/seed-news-scripts.js"
+    "db:seed": "node scripts/seed-news-scripts.js && node scripts/seed-tracks.js",
+    "db:seed:news": "node scripts/seed-news-scripts.js",
+    "db:seed:tracks": "node scripts/seed-tracks.js",
+    "db:seed:tracks:youtube": "node scripts/seed-tracks.js --resolve-youtube"
   },
   "dependencies": {
     "express": "^4.19.2",
