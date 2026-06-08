@@ -38,10 +38,12 @@ class RadioOrchestrator(
     private var currentTrack: SessionTrack? = null
     private var pendingTrack: SessionTrack? = null
     private var state: PlaybackState = PlaybackState.IDLE
+    private var consecutiveYouTubeErrors = 0
 
     fun startSession(era: String) {
         newsAudioPlayer.stop()
         pendingTrack = null
+        consecutiveYouTubeErrors = 0
         setState(
             uiState.copy(
                 selectedEra = era,
@@ -105,29 +107,38 @@ class RadioOrchestrator(
 
     override fun onVideoEnded(trackId: String?) {
         if (state != PlaybackState.PLAYING_TRACK) return
+        consecutiveYouTubeErrors = 0
         fetchNextAndPlayNews()
     }
 
     override fun onError(code: String) {
-        if (state == PlaybackState.PLAYING_NEWS) return
-        state = PlaybackState.ERROR
-        setState(uiState.copy(playbackState = PlaybackState.ERROR, errorMessage = "YouTube error: $code"))
+        if (state == PlaybackState.PLAYING_NEWS || state == PlaybackState.FETCHING_NEXT) return
+        val failedTrack = currentTrack
+        if (failedTrack == null || consecutiveYouTubeErrors >= MAX_CONSECUTIVE_YOUTUBE_ERRORS) {
+            state = PlaybackState.ERROR
+            setState(uiState.copy(playbackState = PlaybackState.ERROR, errorMessage = "YouTube error: $code"))
+            return
+        }
+
+        consecutiveYouTubeErrors += 1
+        fetchNextAndPlayNews(skipTrackId = failedTrack.trackId, reason = "youtube_error")
     }
 
-    private fun fetchNextAndPlayNews() {
+    private fun fetchNextAndPlayNews(skipTrackId: String? = null, reason: String? = null) {
         val sid = sessionId ?: return
         val afterTrackId = currentTrack?.trackId ?: return
         state = PlaybackState.FETCHING_NEXT
-        setState(uiState.copy(playbackState = PlaybackState.FETCHING_NEXT, statusMessage = "次の曲とニュースを取得中..."))
+        val loadingMessage = if (reason == "youtube_error") "再生できない動画をスキップしています..." else "次の曲とニュースを取得中..."
+        setState(uiState.copy(playbackState = PlaybackState.FETCHING_NEXT, statusMessage = loadingMessage))
 
         scope.launch {
             val nextUnit = runCatching {
-                withContext(Dispatchers.IO) { radioApiClient.next(sid, afterTrackId) }
+                withContext(Dispatchers.IO) { radioApiClient.next(sid, afterTrackId, skipTrackId, reason) }
             }.getOrElse { firstError ->
                 state = PlaybackState.RECOVERING
                 setState(uiState.copy(playbackState = PlaybackState.RECOVERING, statusMessage = "再同期しています..."))
                 runCatching {
-                    withContext(Dispatchers.IO) { radioApiClient.next(sid, currentTrack?.trackId ?: afterTrackId) }
+                    withContext(Dispatchers.IO) { radioApiClient.next(sid, currentTrack?.trackId ?: afterTrackId, skipTrackId, reason) }
                 }.getOrElse { secondError ->
                     state = PlaybackState.ERROR
                     setState(
@@ -185,3 +196,5 @@ class RadioOrchestrator(
         onUiStateChanged(nextState)
     }
 }
+
+private const val MAX_CONSECUTIVE_YOUTUBE_ERRORS = 3

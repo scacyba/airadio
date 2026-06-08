@@ -36,7 +36,12 @@ data class NextPlaybackUnit(
 
 interface RadioApiClient {
     suspend fun createSession(era: String): CreatedSession
-    suspend fun next(sessionId: String, afterTrackId: String): NextPlaybackUnit
+    suspend fun next(
+        sessionId: String,
+        afterTrackId: String,
+        skipTrackId: String? = null,
+        reason: String? = null
+    ): NextPlaybackUnit
 }
 
 class HttpRadioApiClient(
@@ -60,11 +65,18 @@ class HttpRadioApiClient(
         )
     }
 
-    override suspend fun next(sessionId: String, afterTrackId: String): NextPlaybackUnit {
-        val encodedTrackId = URLEncoder.encode(afterTrackId, "UTF-8")
+    override suspend fun next(
+        sessionId: String,
+        afterTrackId: String,
+        skipTrackId: String?,
+        reason: String?
+    ): NextPlaybackUnit {
+        val query = mutableListOf("afterTrackId=${URLEncoder.encode(afterTrackId, "UTF-8")}")
+        skipTrackId?.let { query += "skipTrackId=${URLEncoder.encode(it, "UTF-8")}" }
+        reason?.let { query += "reason=${URLEncoder.encode(it, "UTF-8")}" }
         val response = requestJson(
             method = "GET",
-            path = "/radio/session/$sessionId/next?afterTrackId=$encodedTrackId"
+            path = "/radio/session/$sessionId/next?${query.joinToString("&")}"
         )
         val playbackUnit = response.getJSONObject("playbackUnit")
         val news = playbackUnit.getJSONObject("news")

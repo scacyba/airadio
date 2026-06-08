@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 
-import { boolean, index, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 
 function createCuid() {
   const timestamp = Date.now().toString(36);
@@ -29,4 +29,24 @@ export const newsScripts = pgTable('news_scripts', {
   categoryIdx: index('news_scripts_category_idx').on(table.category),
   yearCategoryIdx: index('news_scripts_year_category_idx').on(table.year, table.category),
   yearMonthCategoryIdx: index('news_scripts_year_month_category_idx').on(table.year, table.month, table.category)
+}));
+
+
+export const tracks = pgTable('tracks', {
+  trackId: text('track_id').primaryKey(),
+  era: text('era').notNull(),
+  title: text('title').notNull(),
+  artist: text('artist').notNull(),
+  releaseYear: integer('release_year').notNull(),
+  country: text('country').notNull(),
+  youtubeQuery: text('youtube_query').notNull(),
+  videoId: text('video_id'),
+  durationSec: integer('duration_sec'),
+  isPlayable: boolean('is_playable').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow().$onUpdateFn(() => new Date())
+}, (table) => ({
+  eraIdx: index('tracks_era_idx').on(table.era),
+  playableEraIdx: index('tracks_playable_era_idx').on(table.era, table.isPlayable),
+  eraTitleArtistIdx: uniqueIndex('tracks_era_title_artist_idx').on(table.era, table.title, table.artist)
 }));

@@ -104,3 +104,22 @@
 - SQL migration: `drizzle/0000_create_news_scripts.sql`
 - Seed script: `scripts/seed-news-scripts.js`
 - Default seed JSON: `data/news_scripts.seed.json`
+
+## Track catalog storage and seeding
+
+YouTube playback tracks are stored in PostgreSQL in the `tracks` table. The legacy `backend/data/tracks_catalog.json` catalog is no longer used.
+
+1. Apply migrations after setting `DATABASE_URL`:
+   ```bash
+   npm run db:migrate
+   ```
+2. Seed the curated 1960s-1990s track list:
+   ```bash
+   npm run db:seed:tracks
+   ```
+3. To resolve missing `videoId` values from YouTube during seeding, set `YOUTUBE_API_KEY` and run:
+   ```bash
+   npm run db:seed:tracks:youtube
+   ```
+
+The app only returns tracks with a playable `videoId`. If seeded rows do not already contain `videoId`, the backend can resolve one at request time when `YOUTUBE_API_KEY` is available.
