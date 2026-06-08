@@ -1,8 +1,29 @@
-import { and, asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, lte, sql } from 'drizzle-orm';
 
 import { parseNewsScriptFilters } from './newsScriptFilters.js';
 
 export { parseNewsScriptFilters };
+
+export function getEraYearRange(era) {
+  if (typeof era !== 'string') return null;
+  const match = era.trim().match(/^(\d{4})s$/);
+  if (!match) return null;
+
+  const startYear = Number(match[1]);
+  if (!Number.isInteger(startYear)) return null;
+  return { startYear, endYear: startYear + 9 };
+}
+
+export function buildNewsScriptWhereForEra(newsScripts, era) {
+  const range = getEraYearRange(era);
+  if (!range) return null;
+
+  return and(
+    eq(newsScripts.isPublished, true),
+    gte(newsScripts.year, range.startYear),
+    lte(newsScripts.year, range.endYear)
+  );
+}
 
 export function buildNewsScriptWhere(newsScripts, filters = {}) {
   const conditions = [eq(newsScripts.isPublished, true)];
@@ -46,6 +67,20 @@ export async function getRandomNewsScript(db, newsScripts, filters = {}) {
     .select()
     .from(newsScripts)
     .where(buildNewsScriptWhere(newsScripts, filters))
+    .orderBy(sql`random()`)
+    .limit(1);
+
+  return rows[0] ? toNewsScriptResponse(rows[0]) : null;
+}
+
+export async function getRandomNewsScriptForEra(db, newsScripts, era) {
+  const where = buildNewsScriptWhereForEra(newsScripts, era);
+  if (!where) return null;
+
+  const rows = await db
+    .select()
+    .from(newsScripts)
+    .where(where)
     .orderBy(sql`random()`)
     .limit(1);
 

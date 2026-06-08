@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { parseNewsScriptFilters } from './newsScriptFilters.js';
+import { getRandomNewsScriptForEra } from './newsScripts.js';
 import { ALLOWED_TRACK_ERAS, isAllowedTrackEra, selectRandomPlayableTrack, toPlaybackTrack } from './tracks.js';
 
 const app = express();
@@ -518,18 +519,34 @@ async function synthesizeNewsAudio({ newsId, script, req }) {
   };
 }
 
-async function getOrCreateCachedNews({ era, locale, tone, maxChars, req }) {
+function buildNewsCacheKey({ era, locale, tone, maxChars, providerKey = process.env.LLM_PROVIDER || 'auto', newsScriptId, todayKey = new Date().toISOString().slice(0, 10) }) {
+  const sourceKey = newsScriptId || 'fallback';
+  return `${era}|${locale}|${tone}|${maxChars}|${providerKey}|${sourceKey}|${todayKey}`;
+}
+
+function newsScriptToSourceItems(newsScript) {
+  if (!newsScript) return undefined;
+  return [{
+    title: newsScript.title,
+    summary: newsScript.summary,
+    detail: newsScript.scriptText,
+    date: typeof newsScript.date === 'string' ? newsScript.date.slice(0, 10) : ''
+  }];
+}
+
+async function getOrCreateCachedNews({ era, locale, tone, maxChars, req, sourceItems, newsScriptId, headline }) {
   const providerKey = process.env.LLM_PROVIDER || 'auto';
-  const key = `${era}|${locale}|${tone}|${maxChars}|${providerKey}|${new Date().toISOString().slice(0, 10)}`;
+  const key = buildNewsCacheKey({ era, locale, tone, maxChars, providerKey, newsScriptId });
   if (newsCache.has(key)) {
     return newsCache.get(key);
   }
 
-  const news = await generateNewsScript({ era, locale, tone, maxChars });
+  const news = await generateNewsScript({ era, locale, tone, maxChars, sourceItems });
   const audio = await synthesizeNewsAudio({ newsId: news.newsId, script: news.script, req });
   const payload = {
     newsId: news.newsId,
-    headline: `${era}を振り返るトピック`,
+    newsScriptId: newsScriptId || null,
+    headline: headline || `${era}を振り返るトピック`,
     script: news.script,
     charCount: news.charCount,
     audio,
@@ -543,11 +560,11 @@ async function getOrCreateCachedNews({ era, locale, tone, maxChars, req }) {
 app.use('/audio-assets', express.static(audioOutputDir, { fallthrough: false }));
 
 async function getTrackStore() {
-  const [{ getDb }, { tracks }] = await Promise.all([
+  const [{ getDb }, { tracks, newsScripts }] = await Promise.all([
     import('./db/client.js'),
     import('./db/schema.js')
   ]);
-  return { db: getDb(), tracks };
+  return { db: getDb(), tracks, newsScripts };
 }
 
 function validateTrackEra(res, era) {
@@ -615,7 +632,7 @@ app.get('/radio/session/:id/next', async (req, res) => {
   }
 
   try {
-    const { db, tracks } = await getTrackStore();
+    const { db, tracks, newsScripts } = await getTrackStore();
     const excludeTrackIds = [session.currentTrackId, skipTrackId, ...session.skippedTrackIds];
     let nextTrack = await selectRandomPlayableTrack(db, tracks, {
       era: session.era,
@@ -640,7 +657,17 @@ app.get('/radio/session/:id/next', async (req, res) => {
     session.playedTrackIds = [...new Set([...session.playedTrackIds, nextTrack.trackId])];
     session.sequence += 1;
 
-    const news = await getOrCreateCachedNews({ era: session.era, locale: session.locale, tone: 'nostalgic', maxChars: 180, req });
+    const newsScript = await getRandomNewsScriptForEra(db, newsScripts, session.era);
+    const news = await getOrCreateCachedNews({
+      era: session.era,
+      locale: session.locale,
+      tone: 'nostalgic',
+      maxChars: 180,
+      req,
+      sourceItems: newsScriptToSourceItems(newsScript),
+      newsScriptId: newsScript?.id,
+      headline: newsScript?.title
+    });
     return res.json({
       sessionId: session.sessionId,
       sequence: session.sequence,
@@ -717,9 +744,11 @@ export {
   extractGeminiText,
   extractOpenAiText,
   generateNewsScript,
+  buildNewsCacheKey,
   ALLOWED_TRACK_ERAS,
   normalizeMaxChars,
   normalizeSourceItems,
+  newsScriptToSourceItems,
   normalizeTtsAudioBuffer,
   parseAudioMimeType,
   resolveLlmProvider,
