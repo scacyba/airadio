@@ -29,7 +29,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "RADIO_API_BASE_URL", "\"${System.getenv("RADIO_API_BASE_URL") ?: "http://10.0.2.2:8080"}\"")
-        buildConfigField("String", "ADMOB_BANNER_AD_UNIT_ID", "\"${System.getenv("ADMOB_BANNER_AD_UNIT_ID") ?: "ca-app-pub-3940256099942544/9214589741"}\"")
+        buildConfigField("String", "ADMOB_BANNER_AD_UNIT_ID", "\"${System.getenv("ADMOB_BANNER_AD_UNIT_ID") ?: "ca-app-pub-3940256099942544/6300978111"}\"")
         manifestPlaceholders["ADMOB_APP_ID"] = System.getenv("ADMOB_APP_ID") ?: "ca-app-pub-3940256099942544~3347511713"
     }
 

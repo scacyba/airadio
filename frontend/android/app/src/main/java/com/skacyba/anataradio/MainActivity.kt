@@ -1,6 +1,7 @@
 package com.skacyba.anataradio
 
 import android.os.Bundle
+import android.util.Log
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -13,8 +14,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -37,9 +42,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
+import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.MobileAds
 import com.skacyba.anataradio.radio.AndroidNewsAudioPlayer
 import com.skacyba.anataradio.radio.HttpRadioApiClient
@@ -96,6 +103,9 @@ fun RadioScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .navigationBarsPadding()
+            .imePadding()
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
@@ -166,7 +176,11 @@ private fun AdMobBanner(adUnitId: String, modifier: Modifier = Modifier) {
         AdView(context).apply {
             setAdSize(AdSize.BANNER)
             this.adUnitId = adUnitId
-            loadAd(AdRequest.Builder().build())
+            adListener = object : AdListener() {
+                override fun onAdFailedToLoad(error: LoadAdError) {
+                    Log.w(TAG, "Banner ad failed to load: ${error.code} ${error.message}")
+                }
+            }
         }
     }
 
@@ -182,7 +196,10 @@ private fun AdMobBanner(adUnitId: String, modifier: Modifier = Modifier) {
             contentAlignment = Alignment.Center
         ) {
             AndroidView(
-                factory = { adView },
+                factory = { _ ->
+                    adView.loadAd(AdRequest.Builder().build())
+                    adView
+                },
                 modifier = Modifier
                     .width(320.dp)
                     .height(50.dp)
@@ -207,3 +224,5 @@ private fun EraSelector(selectedEra: String, onEraSelected: (String) -> Unit) {
         }
     }
 }
+
+private const val TAG = "AiradioMain"
