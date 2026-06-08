@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   buildNewsPrompt,
+  buildNewsCacheKey,
   calculateGeminiNewsThinkingBudget,
   calculateNewsOutputTokenBudget,
   extractGeminiText,
@@ -10,13 +11,110 @@ import {
   generateNewsScript,
   normalizeMaxChars,
   normalizeSourceItems,
+  newsScriptToSourceItems,
   normalizeTtsAudioBuffer,
   parseAudioMimeType,
   resolveLlmProvider,
   sanitizeGeneratedScript,
   wrapPcm16leAsWav
 } from '../src/server.js';
-import { parseNewsScriptFilters } from '../src/newsScriptFilters.js';
+import { newsScripts as newsScriptsTable } from '../src/db/schema.js';
+import {
+  buildNewsScriptWhereForEra,
+  getEraYearRange,
+  getRandomNewsScriptForEra,
+  parseNewsScriptFilters
+} from '../src/newsScripts.js';
+
+test('calculates year ranges from supported era strings', () => {
+  assert.deepEqual(getEraYearRange('1960s'), { startYear: 1960, endYear: 1969 });
+  assert.deepEqual(getEraYearRange('1970s'), { startYear: 1970, endYear: 1979 });
+  assert.deepEqual(getEraYearRange('1980s'), { startYear: 1980, endYear: 1989 });
+  assert.deepEqual(getEraYearRange('1990s'), { startYear: 1990, endYear: 1999 });
+  assert.equal(getEraYearRange('1990'), null);
+});
+
+test('builds era news script filter with published flag and inclusive year bounds', () => {
+  const where = buildNewsScriptWhereForEra(newsScriptsTable, '1980s');
+  assert.deepEqual(collectSqlParamValues(where), [true, 1980, 1989]);
+});
+
+test('selects a random published news script for an era range', async () => {
+  let capturedWhere;
+  let capturedLimit;
+  const row = {
+    id: 'c1980news',
+    title: 'テストニュース',
+    summary: '1980年代のニュースです。',
+    type: 'news',
+    scriptText: '詳しいニュース本文です。',
+    date: new Date('1985-04-12T00:00:00.000Z'),
+    year: 1985,
+    month: 4,
+    category: 'society',
+    source: 'seed',
+    sourceUrl: null,
+    isPublished: true,
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-01-02T00:00:00.000Z')
+  };
+  const db = {
+    select: () => ({
+      from: () => ({
+        where: (whereArg) => {
+          capturedWhere = whereArg;
+          return {
+            orderBy: () => ({
+              limit: (limitArg) => {
+                capturedLimit = limitArg;
+                return [row];
+              }
+            })
+          };
+        }
+      })
+    })
+  };
+
+  const selected = await getRandomNewsScriptForEra(db, newsScriptsTable, '1980s');
+
+  assert.deepEqual(collectSqlParamValues(capturedWhere), [true, 1980, 1989]);
+  assert.equal(capturedLimit, 1);
+  assert.equal(selected.id, 'c1980news');
+  assert.equal(selected.date, '1985-04-12T00:00:00.000Z');
+});
+
+test('maps DB news scripts to LLM source items', () => {
+  assert.deepEqual(newsScriptToSourceItems({
+    title: 'DBヘッドライン',
+    summary: 'DB要約',
+    scriptText: 'DB本文',
+    date: '1995-06-01T00:00:00.000Z'
+  }), [{
+    title: 'DBヘッドライン',
+    summary: 'DB要約',
+    detail: 'DB本文',
+    date: '1995-06-01'
+  }]);
+  assert.equal(newsScriptToSourceItems(null), undefined);
+});
+
+test('builds news cache keys with source identity and date', () => {
+  const base = { era: '1990s', locale: 'ja-JP', tone: 'nostalgic', maxChars: 180, providerKey: 'template' };
+  assert.equal(
+    buildNewsCacheKey({ ...base, newsScriptId: 'cnews1', todayKey: '2026-06-08' }),
+    '1990s|ja-JP|nostalgic|180|template|cnews1|2026-06-08'
+  );
+  assert.notEqual(
+    buildNewsCacheKey({ ...base, newsScriptId: 'cnews1', todayKey: '2026-06-08' }),
+    buildNewsCacheKey({ ...base, newsScriptId: 'cnews2', todayKey: '2026-06-08' })
+  );
+  assert.notEqual(
+    buildNewsCacheKey({ ...base, newsScriptId: 'cnews1', todayKey: '2026-06-08' }),
+    buildNewsCacheKey({ ...base, newsScriptId: 'cnews1', todayKey: '2026-06-09' })
+  );
+  assert.match(buildNewsCacheKey({ ...base, todayKey: '2026-06-08' }), /\|fallback\|2026-06-08$/);
+});
 
 test('parses news script filter query parameters', () => {
   assert.deepEqual(parseNewsScriptFilters({ year: '1995', month: '6', category: ' technology ' }), {
@@ -281,6 +379,22 @@ test('normalizes Gemini TTS PCM payloads to wav audio assets', () => {
   assert.equal(normalized.mimeType, 'audio/wav');
   assert.equal(normalized.buffer.toString('ascii', 0, 4), 'RIFF');
 });
+
+function collectSqlParamValues(sqlNode) {
+  const values = [];
+  const visit = (node) => {
+    if (!node || typeof node !== 'object') return;
+    if ('value' in node && node.constructor?.name === 'Param') {
+      values.push(node.value);
+      return;
+    }
+    if (Array.isArray(node.queryChunks)) {
+      for (const chunk of node.queryChunks) visit(chunk);
+    }
+  };
+  visit(sqlNode);
+  return values;
+}
 
 function jsonResponse(payload) {
   return new Response(JSON.stringify(payload), {
