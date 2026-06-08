@@ -12,6 +12,8 @@ on:
 jobs:
   build:
 
+    if: github.ref != 'refs/heads/notplaystore20260605'
+
     runs-on: ubuntu-latest
 
     defaults:
