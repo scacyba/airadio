@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -172,38 +173,48 @@ fun RadioScreen() {
 @Composable
 private fun AdMobBanner(adUnitId: String, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val adView = remember(adUnitId) {
-        AdView(context).apply {
-            setAdSize(AdSize.BANNER)
-            this.adUnitId = adUnitId
-            adListener = object : AdListener() {
-                override fun onAdFailedToLoad(error: LoadAdError) {
-                    Log.w(TAG, "Banner ad failed to load: ${error.code} ${error.message}")
-                }
-            }
-        }
-    }
-
-    DisposableEffect(adView) {
-        onDispose { adView.destroy() }
-    }
+    val bannerPadding = 8.dp
 
     Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF111827)), shape = RoundedCornerShape(12.dp)) {
-        Box(
-            modifier = modifier
-                .height(66.dp)
-                .padding(8.dp),
+        BoxWithConstraints(
+            modifier = modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
-            AndroidView(
-                factory = { _ ->
-                    adView.loadAd(AdRequest.Builder().build())
-                    adView
-                },
+            val availableWidth = (maxWidth - bannerPadding * 2).coerceAtLeast(1.dp)
+            val adWidthDp = availableWidth.value.toInt().coerceAtLeast(1)
+            val adSize = remember(context, adWidthDp) {
+                AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(context, adWidthDp)
+            }
+            val adView = remember(adUnitId, adSize) {
+                AdView(context).apply {
+                    setAdSize(adSize)
+                    this.adUnitId = adUnitId
+                    adListener = object : AdListener() {
+                        override fun onAdFailedToLoad(error: LoadAdError) {
+                            Log.w(TAG, "Banner ad failed to load: ${error.code} ${error.message}")
+                        }
+                    }
+                    loadAd(AdRequest.Builder().build())
+                }
+            }
+
+            DisposableEffect(adView) {
+                onDispose { adView.destroy() }
+            }
+
+            Box(
                 modifier = Modifier
-                    .width(320.dp)
-                    .height(50.dp)
-            )
+                    .fillMaxWidth()
+                    .padding(bannerPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                AndroidView(
+                    factory = { adView },
+                    modifier = Modifier
+                        .width(adSize.width.dp)
+                        .height(adSize.height.dp)
+                )
+            }
         }
     }
 }
