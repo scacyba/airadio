@@ -6,3 +6,6 @@ frontend/android/app/build/
 keystore.properties
 frontend/android/keystore.properties
 frontend/android/keys/
+
+# Firebase config generated from CI/local secrets
+frontend/android/app/google-services.json
