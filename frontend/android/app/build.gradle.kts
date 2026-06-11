@@ -12,6 +12,20 @@ val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("keystore.properties")
 val hasReleaseKeystore = keystorePropertiesFile.exists()
 
+fun envOrNull(name: String): String? = System.getenv(name)?.takeUnless { it.isBlank() }
+
+val defaultAdMobAppId = "ca-app-pub-3940256099942544~3347511713"
+val defaultAdMobBannerAdUnitId = "ca-app-pub-3940256099942544/9214589741"
+val adMobAppId = envOrNull("ADMOB_APP_ID") ?: defaultAdMobAppId
+val adMobBannerAdUnitId = envOrNull("ADMOB_BANNER_AD_UNIT_ID") ?: defaultAdMobBannerAdUnitId
+val isReleaseTaskRequested = gradle.startParameter.taskNames.any { taskName ->
+    taskName.contains("Release", ignoreCase = true)
+}
+
+if (isReleaseTaskRequested && (envOrNull("ADMOB_APP_ID") == null || envOrNull("ADMOB_BANNER_AD_UNIT_ID") == null)) {
+    throw GradleException("Release builds require non-blank ADMOB_APP_ID and ADMOB_BANNER_AD_UNIT_ID environment variables.")
+}
+
 if (hasReleaseKeystore) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
@@ -29,8 +43,8 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "RADIO_API_BASE_URL", "\"${System.getenv("RADIO_API_BASE_URL") ?: "http://10.0.2.2:8080"}\"")
-        buildConfigField("String", "ADMOB_BANNER_AD_UNIT_ID", "\"${System.getenv("ADMOB_BANNER_AD_UNIT_ID") ?: "ca-app-pub-3940256099942544/9214589741"}\"")
-        manifestPlaceholders["ADMOB_APP_ID"] = System.getenv("ADMOB_APP_ID") ?: "ca-app-pub-3940256099942544~3347511713"
+        buildConfigField("String", "ADMOB_BANNER_AD_UNIT_ID", "\"$adMobBannerAdUnitId\"")
+        manifestPlaceholders["ADMOB_APP_ID"] = adMobAppId
     }
 
     signingConfigs {
