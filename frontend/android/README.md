@@ -27,6 +27,13 @@ ADMOB_BANNER_AD_UNIT_ID=ca-app-pub-xxxxxxxxxxxxxxxx/zzzzzzzzzz \
 ./gradlew :app:assembleDebug
 ```
 
+
+## Firebase Crashlytics / AdMobトレース
+- `app/google-services.json` が存在するビルドでは、Google Services / Crashlytics Gradle plugin を有効化し、Firebase Crashlyticsへクラッシュ・非致命エラーを送信します。
+- `app/google-services.json` がないローカルビルドではCrashlytics pluginを適用せず、通常のデバッグビルドを継続できます。
+- AdMob初期化、バナー広告のロード開始/成功、ロード失敗コード・ドメインをCrashlyticsへ記録します。広告が表示されない場合はCrashlytics上の非致命エラーで原因を追跡してください。
+- GitHub ActionsではRepository Secret `FIREBASE_GOOGLE_SERVICES_JSON` に `google-services.json` のJSON本文を登録すると、CI/Releaseビルド時に `app/google-services.json` を生成します。
+
 ## ビルド構成
 - AGP: `8.13.2`
 - Kotlin Gradle Plugin: `2.3.21`
