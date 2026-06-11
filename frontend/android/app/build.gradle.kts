@@ -22,6 +22,20 @@ val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("keystore.properties")
 val hasReleaseKeystore = keystorePropertiesFile.exists()
 
+fun envOrNull(name: String): String? = System.getenv(name)?.takeUnless { it.isBlank() }
+
+val defaultAdMobAppId = "ca-app-pub-3940256099942544~3347511713"
+val defaultAdMobBannerAdUnitId = "ca-app-pub-3940256099942544/9214589741"
+val adMobAppId = envOrNull("ADMOB_APP_ID") ?: defaultAdMobAppId
+val adMobBannerAdUnitId = envOrNull("ADMOB_BANNER_AD_UNIT_ID") ?: defaultAdMobBannerAdUnitId
+val isReleaseTaskRequested = gradle.startParameter.taskNames.any { taskName ->
+    taskName.contains("Release", ignoreCase = true)
+}
+
+if (isReleaseTaskRequested && (envOrNull("ADMOB_APP_ID") == null || envOrNull("ADMOB_BANNER_AD_UNIT_ID") == null)) {
+    throw GradleException("Release builds require non-blank ADMOB_APP_ID and ADMOB_BANNER_AD_UNIT_ID environment variables.")
+}
+
 if (hasReleaseKeystore) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
