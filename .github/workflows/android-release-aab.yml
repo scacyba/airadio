@@ -62,12 +62,13 @@ jobs:
           fi
           curl -fL "${BUNDLETOOL_DOWNLOAD_URL}" -o "${RUNNER_TEMP}/bundletool/bundletool.jar"
 
-      - name: Build universal APK set from release AAB
+      - name: Build AAB-derived universal APK for direct install
         run: |
           set -euo pipefail
           AAB_PATH=app/build/outputs/bundle/release/app-release.aab
           APKS_PATH=app/build/outputs/bundle/release/app-release.apks
-          rm -f "${APKS_PATH}"
+          APK_PATH=app/build/outputs/bundle/release/app-release-universal.apk
+          rm -f "${APKS_PATH}" "${APK_PATH}"
           java -jar "${RUNNER_TEMP}/bundletool/bundletool.jar" build-apks \
             --bundle "${AAB_PATH}" \
             --output "${APKS_PATH}" \
@@ -76,6 +77,7 @@ jobs:
             --ks-pass "pass:${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
             --ks-key-alias "${{ secrets.ANDROID_KEY_ALIAS }}" \
             --key-pass "pass:${{ secrets.ANDROID_KEY_PASSWORD }}"
+          unzip -p "${APKS_PATH}" universal.apk > "${APK_PATH}"
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
@@ -88,3 +90,9 @@ jobs:
         with:
           name: anata-radio-release-apks
           path: frontend/android/app/build/outputs/bundle/release/app-release.apks
+
+      - name: Upload direct-install APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: anata-radio-release-universal-apk
+          path: frontend/android/app/build/outputs/bundle/release/app-release-universal.apk
