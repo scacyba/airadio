@@ -46,7 +46,7 @@ jobs:
 
       - name: Write Firebase config
         if: env.FIREBASE_GOOGLE_SERVICES_JSON != ''
-        run: echo "$FIREBASE_GOOGLE_SERVICES_JSON" > app/google-services.json
+        run: python3 scripts/write_google_services_json.py
 
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew

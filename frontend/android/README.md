@@ -33,6 +33,7 @@ ADMOB_BANNER_AD_UNIT_ID=ca-app-pub-xxxxxxxxxxxxxxxx/zzzzzzzzzz \
 - `app/google-services.json` がないローカルビルドではCrashlytics pluginを適用せず、通常のデバッグビルドを継続できます。
 - AdMob初期化、バナー広告のロード開始/成功、ロード失敗コード・ドメインをCrashlyticsへ記録します。広告が表示されない場合はCrashlytics上の非致命エラーで原因を追跡してください。
 - GitHub ActionsではRepository Secret `FIREBASE_GOOGLE_SERVICES_JSON` に `google-services.json` のJSON本文を登録すると、CI/Releaseビルド時に `app/google-services.json` を生成します。
+- CIでは `scripts/write_google_services_json.py` がSecretを検証してから生成します。Secretは生のJSON本文、引用符付き/エスケープ済みJSON文字列、`FIREBASE_GOOGLE_SERVICES_JSON=<JSON>` 形式、URLエスケープ済み文字列、base64/base64urlエンコード済みJSONのいずれでも利用できます。
 
 ## ビルド構成
 - AGP: `8.13.2`
