@@ -48,7 +48,7 @@ android {
         applicationId = "com.skacyba.anataradio"
         minSdk = 24
         targetSdk = 35
-        versionCode = 2
+        versionCode = 3
         versionName = "0.1test"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
