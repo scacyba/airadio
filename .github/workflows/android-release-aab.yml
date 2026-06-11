@@ -49,8 +49,42 @@ jobs:
       - name: Build release AAB
         run: ./gradlew clean bundleRelease
 
+      - name: Download bundletool
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/bundletool"
+          BUNDLETOOL_DOWNLOAD_URL=$(curl -fsSL https://api.github.com/repos/google/bundletool/releases/latest \
+            | jq -r '.assets[] | select(.name | test("^bundletool-all-.*\\.jar$")) | .browser_download_url' \
+            | head -n 1)
+          if [ -z "${BUNDLETOOL_DOWNLOAD_URL}" ]; then
+            echo "Could not resolve bundletool download URL" >&2
+            exit 1
+          fi
+          curl -fL "${BUNDLETOOL_DOWNLOAD_URL}" -o "${RUNNER_TEMP}/bundletool/bundletool.jar"
+
+      - name: Build universal APK set from release AAB
+        run: |
+          set -euo pipefail
+          AAB_PATH=app/build/outputs/bundle/release/app-release.aab
+          APKS_PATH=app/build/outputs/bundle/release/app-release.apks
+          rm -f "${APKS_PATH}"
+          java -jar "${RUNNER_TEMP}/bundletool/bundletool.jar" build-apks \
+            --bundle "${AAB_PATH}" \
+            --output "${APKS_PATH}" \
+            --mode universal \
+            --ks app/keys/anata-radio-upload-key.jks \
+            --ks-pass "pass:${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
+            --ks-key-alias "${{ secrets.ANDROID_KEY_ALIAS }}" \
+            --key-pass "pass:${{ secrets.ANDROID_KEY_PASSWORD }}"
+
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:
           name: anata-radio-release-aab
           path: frontend/android/app/build/outputs/bundle/release/*.aab
+
+      - name: Upload APK set artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: anata-radio-release-apks
+          path: frontend/android/app/build/outputs/bundle/release/app-release.apks
