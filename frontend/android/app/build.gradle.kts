@@ -24,8 +24,8 @@ android {
         applicationId = "com.skacyba.anataradio"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "0.1test"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "RADIO_API_BASE_URL", "\"${System.getenv("RADIO_API_BASE_URL") ?: "http://10.0.2.2:8080"}\"")
