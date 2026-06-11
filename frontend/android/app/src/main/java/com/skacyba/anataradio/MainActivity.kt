@@ -5,7 +5,7 @@ import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -37,21 +37,28 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
+import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.MobileAds
 import com.skacyba.anataradio.radio.AndroidNewsAudioPlayer
 import com.skacyba.anataradio.radio.HttpRadioApiClient
 import com.skacyba.anataradio.radio.RadioOrchestrator
 import com.skacyba.anataradio.radio.YouTubeWebViewPlayer
+import com.skacyba.anataradio.telemetry.CrashReporter
 
 private val EraOptions = listOf("1970s", "1980s", "1990s", "2000s")
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        MobileAds.initialize(this)
+        CrashReporter.initialize(applicationContext, BuildConfig.CRASHLYTICS_CONFIGURED)
+        CrashReporter.setKey("admob_banner_unit_id_configured", getStringResourceConfigured(BuildConfig.ADMOB_BANNER_AD_UNIT_ID))
+        MobileAds.initialize(this) { initializationStatus ->
+            CrashReporter.log("AdMob initialized: ${initializationStatus.adapterStatusMap.keys.joinToString()}")
+        }
         setContent {
             AiradioTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFF0F172A)) {
@@ -60,6 +67,9 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    private fun getStringResourceConfigured(value: String): String =
+        if (value.isBlank()) "blank" else "configured"
 }
 
 @Composable
@@ -161,30 +171,47 @@ fun RadioScreen() {
 
 @Composable
 private fun AdMobBanner(adUnitId: String, modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    val adView = remember(adUnitId) {
-        AdView(context).apply {
-            setAdSize(AdSize.BANNER)
-            this.adUnitId = adUnitId
-            loadAd(AdRequest.Builder().build())
-        }
-    }
-
-    DisposableEffect(adView) {
-        onDispose { adView.destroy() }
-    }
-
     Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF111827)), shape = RoundedCornerShape(12.dp)) {
-        Box(
+        BoxWithConstraints(
             modifier = modifier
                 .height(66.dp)
                 .padding(8.dp),
             contentAlignment = Alignment.Center
         ) {
+            val context = LocalContext.current
+            val bannerWidth = maxWidth.coerceAtMost(320.dp)
+            val adView = remember(adUnitId, bannerWidth) {
+                val widthPx = bannerWidth.value.toInt().coerceAtLeast(320)
+                AdView(context).apply {
+                    setAdSize(AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(context, widthPx))
+                    this.adUnitId = adUnitId
+                    adListener = object : AdListener() {
+                        override fun onAdLoaded() {
+                            CrashReporter.log("AdMob banner loaded")
+                        }
+
+                        override fun onAdFailedToLoad(adError: LoadAdError) {
+                            CrashReporter.setKey("admob_error_code", adError.code)
+                            CrashReporter.setKey("admob_error_domain", adError.domain)
+                            CrashReporter.recordNonFatal(
+                                "AdMob banner failed to load: ${adError.code} ${adError.domain} ${adError.message}"
+                            )
+                        }
+                    }
+                    CrashReporter.setKey("admob_banner_unit_id", if (adUnitId.isBlank()) "blank" else "configured")
+                    CrashReporter.log("AdMob banner load requested")
+                    loadAd(AdRequest.Builder().build())
+                }
+            }
+
+            DisposableEffect(adView) {
+                onDispose { adView.destroy() }
+            }
+
             AndroidView(
                 factory = { adView },
                 modifier = Modifier
-                    .width(320.dp)
+                    .width(bannerWidth)
                     .height(50.dp)
             )
         }

@@ -15,6 +15,7 @@ jobs:
       RADIO_API_BASE_URL: ${{ secrets.RADIO_API_BASE_URL }}
       ADMOB_APP_ID: ${{ secrets.ADMOB_APP_ID || 'ca-app-pub-3940256099942544~3347511713' }}
       ADMOB_BANNER_AD_UNIT_ID: ${{ secrets.ADMOB_BANNER_AD_UNIT_ID || 'ca-app-pub-3940256099942544/9214589741' }}
+      FIREBASE_GOOGLE_SERVICES_JSON: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON }}
 
     steps:
       - name: Checkout
@@ -42,6 +43,10 @@ jobs:
           keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
           keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
           EOF
+
+      - name: Write Firebase config
+        if: env.FIREBASE_GOOGLE_SERVICES_JSON != ''
+        run: python3 scripts/write_google_services_json.py
 
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew

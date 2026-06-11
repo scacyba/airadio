@@ -8,6 +8,16 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val hasGoogleServicesConfig = file("google-services.json").exists()
+
+if (hasGoogleServicesConfig) {
+    apply(plugin = "com.google.gms.google-services")
+    apply(plugin = "com.google.firebase.crashlytics")
+}
+
+fun envOrDefault(name: String, defaultValue: String): String =
+    System.getenv(name)?.takeUnless { it.isBlank() } ?: defaultValue
+
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("keystore.properties")
 val hasReleaseKeystore = keystorePropertiesFile.exists()
@@ -42,9 +52,10 @@ android {
         versionName = "0.1test"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "RADIO_API_BASE_URL", "\"${System.getenv("RADIO_API_BASE_URL") ?: "http://10.0.2.2:8080"}\"")
-        buildConfigField("String", "ADMOB_BANNER_AD_UNIT_ID", "\"$adMobBannerAdUnitId\"")
-        manifestPlaceholders["ADMOB_APP_ID"] = adMobAppId
+        buildConfigField("String", "RADIO_API_BASE_URL", "\"${envOrDefault("RADIO_API_BASE_URL", "http://10.0.2.2:8080")}\"")
+        buildConfigField("String", "ADMOB_BANNER_AD_UNIT_ID", "\"${envOrDefault("ADMOB_BANNER_AD_UNIT_ID", "ca-app-pub-3940256099942544/9214589741")}\"")
+        buildConfigField("Boolean", "CRASHLYTICS_CONFIGURED", hasGoogleServicesConfig.toString())
+        manifestPlaceholders["ADMOB_APP_ID"] = envOrDefault("ADMOB_APP_ID", "ca-app-pub-3940256099942544~3347511713")
     }
 
     signingConfigs {
@@ -104,6 +115,9 @@ dependencies {
     implementation("androidx.webkit:webkit:1.11.0")
     implementation("androidx.media3:media3-exoplayer:1.4.1")
     implementation("com.google.android.gms:play-services-ads:25.3.0")
+    implementation(platform("com.google.firebase:firebase-bom:34.7.0"))
+    implementation("com.google.firebase:firebase-crashlytics")
+    implementation("com.google.firebase:firebase-analytics")
     implementation("androidx.media3:media3-ui:1.4.1")
 
     testImplementation("junit:junit:4.13.2")
