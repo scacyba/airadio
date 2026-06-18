@@ -13,8 +13,9 @@ jobs:
 
     env:
       RADIO_API_BASE_URL: ${{ secrets.RADIO_API_BASE_URL }}
-      ADMOB_APP_ID: ${{ secrets.ADMOB_APP_ID }}
-      ADMOB_BANNER_AD_UNIT_ID: ${{ secrets.ADMOB_BANNER_AD_UNIT_ID }}
+      ADMOB_APP_ID: ${{ secrets.ADMOB_APP_ID || 'ca-app-pub-3940256099942544~3347511713' }}
+      ADMOB_BANNER_AD_UNIT_ID: ${{ secrets.ADMOB_BANNER_AD_UNIT_ID || 'ca-app-pub-3940256099942544/9214589741' }}
+      FIREBASE_GOOGLE_SERVICES_JSON: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON }}
 
     steps:
       - name: Checkout
@@ -43,14 +44,60 @@ jobs:
           keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
           EOF
 
+      - name: Write Firebase config
+        if: env.FIREBASE_GOOGLE_SERVICES_JSON != ''
+        run: python3 scripts/write_google_services_json.py
+
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
       - name: Build release AAB
         run: ./gradlew clean bundleRelease
 
+      - name: Download bundletool
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/bundletool"
+          BUNDLETOOL_DOWNLOAD_URL=$(curl -fsSL https://api.github.com/repos/google/bundletool/releases/latest \
+            | jq -r '.assets[] | select(.name | test("^bundletool-all-.*\\.jar$")) | .browser_download_url' \
+            | head -n 1)
+          if [ -z "${BUNDLETOOL_DOWNLOAD_URL}" ]; then
+            echo "Could not resolve bundletool download URL" >&2
+            exit 1
+          fi
+          curl -fL "${BUNDLETOOL_DOWNLOAD_URL}" -o "${RUNNER_TEMP}/bundletool/bundletool.jar"
+
+      - name: Build AAB-derived universal APK for direct install
+        run: |
+          set -euo pipefail
+          AAB_PATH=app/build/outputs/bundle/release/app-release.aab
+          APKS_PATH=app/build/outputs/bundle/release/app-release.apks
+          APK_PATH=app/build/outputs/bundle/release/app-release-universal.apk
+          rm -f "${APKS_PATH}" "${APK_PATH}"
+          java -jar "${RUNNER_TEMP}/bundletool/bundletool.jar" build-apks \
+            --bundle "${AAB_PATH}" \
+            --output "${APKS_PATH}" \
+            --mode universal \
+            --ks app/keys/anata-radio-upload-key.jks \
+            --ks-pass "pass:${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
+            --ks-key-alias "${{ secrets.ANDROID_KEY_ALIAS }}" \
+            --key-pass "pass:${{ secrets.ANDROID_KEY_PASSWORD }}"
+          unzip -p "${APKS_PATH}" universal.apk > "${APK_PATH}"
+
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:
           name: anata-radio-release-aab
           path: frontend/android/app/build/outputs/bundle/release/*.aab
+
+      - name: Upload APK set artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: anata-radio-release-apks
+          path: frontend/android/app/build/outputs/bundle/release/app-release.apks
+
+      - name: Upload direct-install APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: anata-radio-release-universal-apk
+          path: frontend/android/app/build/outputs/bundle/release/app-release-universal.apk

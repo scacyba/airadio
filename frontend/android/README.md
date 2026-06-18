@@ -27,6 +27,14 @@ ADMOB_BANNER_AD_UNIT_ID=ca-app-pub-xxxxxxxxxxxxxxxx/zzzzzzzzzz \
 ./gradlew :app:assembleDebug
 ```
 
+
+## Firebase Crashlytics / AdMobトレース
+- `app/google-services.json` が存在するビルドでは、Google Services / Crashlytics Gradle plugin を有効化し、Firebase Crashlyticsへクラッシュ・非致命エラーを送信します。
+- `app/google-services.json` がないローカルビルドではCrashlytics pluginを適用せず、通常のデバッグビルドを継続できます。
+- AdMob初期化、バナー広告のロード開始/成功、ロード失敗コード・ドメインをCrashlyticsへ記録します。広告が表示されない場合はCrashlytics上の非致命エラーで原因を追跡してください。
+- GitHub ActionsではRepository Secret `FIREBASE_GOOGLE_SERVICES_JSON` に `google-services.json` のJSON本文を登録すると、CI/Releaseビルド時に `app/google-services.json` を生成します。
+- CIでは `scripts/write_google_services_json.py` がSecretを検証してから生成します。Secretは生のJSON本文、引用符付き/エスケープ済みJSON文字列、`FIREBASE_GOOGLE_SERVICES_JSON=<JSON>` 形式、URLエスケープ済み文字列、base64/base64urlエンコード済みJSONのいずれでも利用できます。
+
 ## ビルド構成
 - AGP: `8.13.2`
 - Kotlin Gradle Plugin: `2.3.21`
@@ -48,6 +56,42 @@ ADMOB_BANNER_AD_UNIT_ID=ca-app-pub-xxxxxxxxxxxxxxxx/zzzzzzzzzz \
 ```bash
 cd frontend/android
 ./gradlew :app:bundleRelease
+```
+
+
+## AAB由来のAPKセット生成と実機確認
+AAB由来の挙動を実機で再現したい場合は、`bundletool` で `app-release.aab` から APK セットを生成してインストールします。GitHub Actions の `Android Release AAB` ワークフローでは、release AAB ビルド後に `bundletool build-apks --mode universal` を実行し、`app-release.apks` を `anata-radio-release-apks` artifact として保存します。
+
+ローカルで同じ手順を実行する場合は、release AAB を生成後に以下を実行してください。
+
+```bash
+cd frontend/android
+./gradlew :app:bundleRelease
+bundletool build-apks \
+  --bundle app/build/outputs/bundle/release/app-release.aab \
+  --output app/build/outputs/bundle/release/app-release.apks \
+  --mode universal
+```
+
+接続端末に最適化した APK セットを生成する場合は、端末を接続した状態で `--mode universal` の代わりに `--connected-device` を指定します。
+
+```bash
+bundletool build-apks \
+  --bundle app/build/outputs/bundle/release/app-release.aab \
+  --output app/build/outputs/bundle/release/app-release.apks \
+  --connected-device
+```
+
+実機へは以下でインストールします。既に異なる署名の同一 applicationId が入っている場合は、事前にアンインストールしてください。
+
+```bash
+bundletool install-apks --apks app/build/outputs/bundle/release/app-release.apks
+```
+
+クラッシュ時は、以下で Android Runtime / AdMob / アプリ package 名に関するログを確認します。
+
+```bash
+adb logcat -d | grep -iE "AndroidRuntime|FATAL EXCEPTION|MobileAds|AdMob|com.skacyba.anataradio"
 ```
 
 ## 同期/ビルド手順

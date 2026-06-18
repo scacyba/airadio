@@ -12,6 +12,8 @@ on:
 jobs:
   build:
 
+    if: github.ref != 'refs/heads/notplaystore20260605'
+
     runs-on: ubuntu-latest
 
     defaults:
@@ -20,6 +22,7 @@ jobs:
 
     env:
       RADIO_API_BASE_URL: ${{ secrets.RADIO_API_BASE_URL_DEV }}
+      FIREBASE_GOOGLE_SERVICES_JSON: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON }}
 
     steps:
 
@@ -34,6 +37,10 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+
+      - name: Write Firebase config
+        if: env.FIREBASE_GOOGLE_SERVICES_JSON != ''
+        run: python3 scripts/write_google_services_json.py
 
       - name: Grant execute permission
         run: chmod +x gradlew

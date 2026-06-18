@@ -8,9 +8,33 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val hasGoogleServicesConfig = file("google-services.json").exists()
+
+if (hasGoogleServicesConfig) {
+    apply(plugin = "com.google.gms.google-services")
+    apply(plugin = "com.google.firebase.crashlytics")
+}
+
+fun envOrDefault(name: String, defaultValue: String): String =
+    System.getenv(name)?.takeUnless { it.isBlank() } ?: defaultValue
+
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("keystore.properties")
 val hasReleaseKeystore = keystorePropertiesFile.exists()
+
+fun envOrNull(name: String): String? = System.getenv(name)?.takeUnless { it.isBlank() }
+
+val defaultAdMobAppId = "ca-app-pub-3940256099942544~3347511713"
+val defaultAdMobBannerAdUnitId = "ca-app-pub-3940256099942544/9214589741"
+val adMobAppId = envOrNull("ADMOB_APP_ID") ?: defaultAdMobAppId
+val adMobBannerAdUnitId = envOrNull("ADMOB_BANNER_AD_UNIT_ID") ?: defaultAdMobBannerAdUnitId
+val isReleaseTaskRequested = gradle.startParameter.taskNames.any { taskName ->
+    taskName.contains("Release", ignoreCase = true)
+}
+
+if (isReleaseTaskRequested && (envOrNull("ADMOB_APP_ID") == null || envOrNull("ADMOB_BANNER_AD_UNIT_ID") == null)) {
+    throw GradleException("Release builds require non-blank ADMOB_APP_ID and ADMOB_BANNER_AD_UNIT_ID environment variables.")
+}
 
 if (hasReleaseKeystore) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
@@ -24,13 +48,14 @@ android {
         applicationId = "com.skacyba.anataradio"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 3
+        versionName = "0.1test"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "RADIO_API_BASE_URL", "\"${System.getenv("RADIO_API_BASE_URL") ?: "http://10.0.2.2:8080"}\"")
-        buildConfigField("String", "ADMOB_BANNER_AD_UNIT_ID", "\"${System.getenv("ADMOB_BANNER_AD_UNIT_ID") ?: "ca-app-pub-3940256099942544/6300978111"}\"")
-        manifestPlaceholders["ADMOB_APP_ID"] = System.getenv("ADMOB_APP_ID") ?: "ca-app-pub-3940256099942544~3347511713"
+        buildConfigField("String", "RADIO_API_BASE_URL", "\"${envOrDefault("RADIO_API_BASE_URL", "http://10.0.2.2:8080")}\"")
+        buildConfigField("String", "ADMOB_BANNER_AD_UNIT_ID", "\"${envOrDefault("ADMOB_BANNER_AD_UNIT_ID", "ca-app-pub-3940256099942544/9214589741")}\"")
+        buildConfigField("Boolean", "CRASHLYTICS_CONFIGURED", hasGoogleServicesConfig.toString())
+        manifestPlaceholders["ADMOB_APP_ID"] = envOrDefault("ADMOB_APP_ID", "ca-app-pub-3940256099942544~3347511713")
     }
 
     signingConfigs {
@@ -90,6 +115,9 @@ dependencies {
     implementation("androidx.webkit:webkit:1.11.0")
     implementation("androidx.media3:media3-exoplayer:1.4.1")
     implementation("com.google.android.gms:play-services-ads:25.3.0")
+    implementation(platform("com.google.firebase:firebase-bom:34.7.0"))
+    implementation("com.google.firebase:firebase-crashlytics")
+    implementation("com.google.firebase:firebase-analytics")
     implementation("androidx.media3:media3-ui:1.4.1")
 
     testImplementation("junit:junit:4.13.2")
