@@ -1,6 +1,7 @@
 package com.skacyba.anataradio
 
 import android.os.Bundle
+import android.util.Log
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -13,8 +14,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -49,7 +54,7 @@ import com.skacyba.anataradio.radio.RadioOrchestrator
 import com.skacyba.anataradio.radio.YouTubeWebViewPlayer
 import com.skacyba.anataradio.telemetry.CrashReporter
 
-private val EraOptions = listOf("1970s", "1980s", "1990s", "2000s")
+private val EraOptions = listOf("1960s", "1970s", "1980s", "1990s")
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -106,6 +111,9 @@ fun RadioScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .navigationBarsPadding()
+            .imePadding()
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
@@ -209,7 +217,10 @@ private fun AdMobBanner(adUnitId: String, modifier: Modifier = Modifier) {
             }
 
             AndroidView(
-                factory = { adView },
+                factory = { _ ->
+                    adView.loadAd(AdRequest.Builder().build())
+                    adView
+                },
                 modifier = Modifier
                     .width(bannerWidth)
                     .height(50.dp)
@@ -234,3 +245,5 @@ private fun EraSelector(selectedEra: String, onEraSelected: (String) -> Unit) {
         }
     }
 }
+
+private const val TAG = "AiradioMain"
