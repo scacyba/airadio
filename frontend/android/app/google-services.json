@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "149748713286",
+    "project_id": "skacyba-airadio",
+    "storage_bucket": "skacyba-airadio.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:149748713286:android:9966a8b6b1f192f472c747",
+        "android_client_info": {
+          "package_name": "com.skacyba.anataradio"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAJTA_lwIv_Ex9PtJMM8flmyCzLYZ4HFXQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
