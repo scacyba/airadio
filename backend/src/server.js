@@ -14,6 +14,16 @@ app.use(express.urlencoded({ extended: true }));
 
 const sessions = new Map();
 const newsCache = new Map();
+const MAX_CLIENT_REQUEST_CACHE_SIZE = 20;
+
+function rememberClientRequest(session, clientRequestId, responsePayload) {
+  if (!clientRequestId) return;
+  session.clientRequests.set(clientRequestId, responsePayload);
+  while (session.clientRequests.size > MAX_CLIENT_REQUEST_CACHE_SIZE) {
+    const oldestKey = session.clientRequests.keys().next().value;
+    session.clientRequests.delete(oldestKey);
+  }
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -601,6 +611,7 @@ app.post('/radio/session/create', async (req, res) => {
       currentTrackId: selectedTrack.trackId,
       playedTrackIds: [selectedTrack.trackId],
       skippedTrackIds: [],
+      clientRequests: new Map(),
       sequence: 1,
       createdAt: new Date().toISOString()
     };
@@ -620,6 +631,11 @@ app.post('/radio/session/create', async (req, res) => {
 app.get('/radio/session/:id/next', async (req, res) => {
   const session = sessions.get(req.params.id);
   if (!session) return error(res, 404, 'SESSION_NOT_FOUND', 'radio session not found', { sessionId: req.params.id });
+
+  const clientRequestId = typeof req.query.clientRequestId === 'string' ? req.query.clientRequestId.trim() : undefined;
+  if (clientRequestId && session.clientRequests.has(clientRequestId)) {
+    return res.json(session.clientRequests.get(clientRequestId));
+  }
 
   const afterTrackId = typeof req.query.afterTrackId === 'string' ? req.query.afterTrackId : undefined;
   if (afterTrackId && afterTrackId !== session.currentTrackId) {
@@ -668,14 +684,16 @@ app.get('/radio/session/:id/next', async (req, res) => {
       newsScriptId: newsScript?.id,
       headline: newsScript?.title
     });
-    return res.json({
+    const responsePayload = {
       sessionId: session.sessionId,
       sequence: session.sequence,
       playbackUnit: {
         news,
         track: toPlaybackTrack(nextTrack)
       }
-    });
+    };
+    rememberClientRequest(session, clientRequestId, responsePayload);
+    return res.json(responsePayload);
   } catch (e) {
     return error(res, e.status || 500, e.code || 'INTERNAL_ERROR', e.message || 'internal error', e.details || {});
   }
