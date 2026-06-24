@@ -12,7 +12,9 @@ on:
 jobs:
   build:
 
-    if: github.ref != 'refs/heads/notplaystore20260605'
+    if: >
+      github.ref != 'refs/heads/notplaystore20260605' &&
+      github.ref != 'refs/heads/virtual-family20260619'
 
     runs-on: ubuntu-latest
 
