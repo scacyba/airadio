@@ -31,7 +31,8 @@ class RadioOrchestrator(
         val newsHeadline: String? = null,
         val newsScript: String? = null,
         val statusMessage: String = "年代を選択してください。",
-        val errorMessage: String? = null
+        val errorMessage: String? = null,
+        val familyProfile: FamilyProfile = FamilyProfile()
     )
 
     private var uiState = RadioUiState()
@@ -95,6 +96,10 @@ class RadioOrchestrator(
         setState(uiState.copy(playbackState = PlaybackState.IDLE, statusMessage = "停止しました。"))
     }
 
+    fun updateFamilyProfile(familyProfile: FamilyProfile) {
+        setState(uiState.copy(familyProfile = familyProfile))
+    }
+
     fun playNext() {
         if (state == PlaybackState.PLAYING_NEWS || state == PlaybackState.FETCHING_NEXT) return
         fetchNextAndPlayNews()
@@ -135,12 +140,12 @@ class RadioOrchestrator(
 
         scope.launch {
             val nextUnit = runCatching {
-                withContext(Dispatchers.IO) { radioApiClient.next(sid, afterTrackId, clientRequestId, skipTrackId, reason) }
+                withContext(Dispatchers.IO) { radioApiClient.next(sid, afterTrackId, clientRequestId, skipTrackId, reason, uiState.familyProfile) }
             }.getOrElse { firstError ->
                 state = PlaybackState.RECOVERING
                 setState(uiState.copy(playbackState = PlaybackState.RECOVERING, statusMessage = "再同期しています..."))
                 runCatching {
-                    withContext(Dispatchers.IO) { radioApiClient.next(sid, currentTrack?.trackId ?: afterTrackId, clientRequestId, skipTrackId, reason) }
+                    withContext(Dispatchers.IO) { radioApiClient.next(sid, currentTrack?.trackId ?: afterTrackId, clientRequestId, skipTrackId, reason, uiState.familyProfile) }
                 }.getOrElse { secondError ->
                     state = PlaybackState.ERROR
                     setState(
