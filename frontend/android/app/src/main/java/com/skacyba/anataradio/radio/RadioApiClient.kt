@@ -39,6 +39,7 @@ interface RadioApiClient {
     suspend fun next(
         sessionId: String,
         afterTrackId: String,
+        clientRequestId: String,
         skipTrackId: String? = null,
         reason: String? = null
     ): NextPlaybackUnit
@@ -68,10 +69,14 @@ class HttpRadioApiClient(
     override suspend fun next(
         sessionId: String,
         afterTrackId: String,
+        clientRequestId: String,
         skipTrackId: String?,
         reason: String?
     ): NextPlaybackUnit {
-        val query = mutableListOf("afterTrackId=${URLEncoder.encode(afterTrackId, "UTF-8")}")
+        val query = mutableListOf(
+            "clientRequestId=${URLEncoder.encode(clientRequestId, "UTF-8")}",
+            "afterTrackId=${URLEncoder.encode(afterTrackId, "UTF-8")}"
+        )
         skipTrackId?.let { query += "skipTrackId=${URLEncoder.encode(it, "UTF-8")}" }
         reason?.let { query += "reason=${URLEncoder.encode(it, "UTF-8")}" }
         val response = requestJson(

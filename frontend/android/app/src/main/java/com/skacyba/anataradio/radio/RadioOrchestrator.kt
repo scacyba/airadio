@@ -4,6 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.UUID
 
 class RadioOrchestrator(
     private val youTubePlayer: YouTubeWebViewPlayer,
@@ -127,18 +128,19 @@ class RadioOrchestrator(
     private fun fetchNextAndPlayNews(skipTrackId: String? = null, reason: String? = null) {
         val sid = sessionId ?: return
         val afterTrackId = currentTrack?.trackId ?: return
+        val clientRequestId = UUID.randomUUID().toString()
         state = PlaybackState.FETCHING_NEXT
         val loadingMessage = if (reason == "youtube_error") "再生できない動画をスキップしています..." else "次の曲とニュースを取得中..."
         setState(uiState.copy(playbackState = PlaybackState.FETCHING_NEXT, statusMessage = loadingMessage))
 
         scope.launch {
             val nextUnit = runCatching {
-                withContext(Dispatchers.IO) { radioApiClient.next(sid, afterTrackId, skipTrackId, reason) }
+                withContext(Dispatchers.IO) { radioApiClient.next(sid, afterTrackId, clientRequestId, skipTrackId, reason) }
             }.getOrElse { firstError ->
                 state = PlaybackState.RECOVERING
                 setState(uiState.copy(playbackState = PlaybackState.RECOVERING, statusMessage = "再同期しています..."))
                 runCatching {
-                    withContext(Dispatchers.IO) { radioApiClient.next(sid, currentTrack?.trackId ?: afterTrackId, skipTrackId, reason) }
+                    withContext(Dispatchers.IO) { radioApiClient.next(sid, currentTrack?.trackId ?: afterTrackId, clientRequestId, skipTrackId, reason) }
                 }.getOrElse { secondError ->
                     state = PlaybackState.ERROR
                     setState(
