@@ -16,6 +16,51 @@ const sessions = new Map();
 const newsCache = new Map();
 const MAX_CLIENT_REQUEST_CACHE_SIZE = 20;
 
+const FAMILY_PLACEHOLDER_DEFAULTS = {
+  PERSON_SELF: '私',
+  PERSON_SON1: '長男',
+  PERSON_SON2: '次男',
+  PERSON_HUSBAND: '夫',
+  FAMILY: '家族'
+};
+
+function normalizeFamilyValue(value, fallback) {
+  const text = typeof value === 'string' ? value.trim() : '';
+  return text ? text.slice(0, 24) : fallback;
+}
+
+function parseFamilyProfile(query = {}) {
+  return {
+    version: Number.isInteger(Number(query.familyProfileVersion)) ? Number(query.familyProfileVersion) : 1,
+    placeholders: {
+      PERSON_SELF: normalizeFamilyValue(query.personSelf, FAMILY_PLACEHOLDER_DEFAULTS.PERSON_SELF),
+      PERSON_SON1: normalizeFamilyValue(query.personSon1, FAMILY_PLACEHOLDER_DEFAULTS.PERSON_SON1),
+      PERSON_SON2: normalizeFamilyValue(query.personSon2, FAMILY_PLACEHOLDER_DEFAULTS.PERSON_SON2),
+      PERSON_HUSBAND: normalizeFamilyValue(query.personHusband, FAMILY_PLACEHOLDER_DEFAULTS.PERSON_HUSBAND),
+      FAMILY: normalizeFamilyValue(query.family, FAMILY_PLACEHOLDER_DEFAULTS.FAMILY)
+    }
+  };
+}
+
+function applyFamilyPlaceholders(text, familyProfile) {
+  if (typeof text !== 'string') return text;
+  return Object.entries(familyProfile?.placeholders || FAMILY_PLACEHOLDER_DEFAULTS).reduce(
+    (resolved, [key, value]) => resolved.replaceAll(`{{${key}}}`, value),
+    text
+  );
+}
+
+function resolveNewsScriptForFamily(newsScript, familyProfile) {
+  if (!newsScript) return newsScript;
+  return {
+    ...newsScript,
+    title: applyFamilyPlaceholders(newsScript.title, familyProfile),
+    summary: applyFamilyPlaceholders(newsScript.summary, familyProfile),
+    scriptText: applyFamilyPlaceholders(newsScript.scriptText, familyProfile)
+  };
+}
+
+
 function rememberClientRequest(session, clientRequestId, responsePayload) {
   if (!clientRequestId) return;
   session.clientRequests.set(clientRequestId, responsePayload);
@@ -529,9 +574,12 @@ async function synthesizeNewsAudio({ newsId, script, req }) {
   };
 }
 
-function buildNewsCacheKey({ era, locale, tone, maxChars, providerKey = process.env.LLM_PROVIDER || 'auto', newsScriptId, todayKey = new Date().toISOString().slice(0, 10) }) {
+function buildNewsCacheKey({ era, locale, tone, maxChars, providerKey = process.env.LLM_PROVIDER || 'auto', newsScriptId, familyProfile, todayKey = new Date().toISOString().slice(0, 10) }) {
   const sourceKey = newsScriptId || 'fallback';
-  return `${era}|${locale}|${tone}|${maxChars}|${providerKey}|${sourceKey}|${todayKey}`;
+  const familyKey = Object.entries(familyProfile?.placeholders || FAMILY_PLACEHOLDER_DEFAULTS)
+    .map(([key, value]) => `${key}:${value}`)
+    .join(',');
+  return `${era}|${locale}|${tone}|${maxChars}|${providerKey}|${sourceKey}|${familyKey}|${todayKey}`;
 }
 
 function newsScriptToSourceItems(newsScript) {
@@ -544,9 +592,9 @@ function newsScriptToSourceItems(newsScript) {
   }];
 }
 
-async function getOrCreateCachedNews({ era, locale, tone, maxChars, req, sourceItems, newsScriptId, headline }) {
+async function getOrCreateCachedNews({ era, locale, tone, maxChars, req, sourceItems, newsScriptId, headline, familyProfile }) {
   const providerKey = process.env.LLM_PROVIDER || 'auto';
-  const key = buildNewsCacheKey({ era, locale, tone, maxChars, providerKey, newsScriptId });
+  const key = buildNewsCacheKey({ era, locale, tone, maxChars, providerKey, newsScriptId, familyProfile });
   if (newsCache.has(key)) {
     return newsCache.get(key);
   }
@@ -643,6 +691,7 @@ app.get('/radio/session/:id/next', async (req, res) => {
   }
 
   const skipTrackId = typeof req.query.skipTrackId === 'string' ? req.query.skipTrackId : undefined;
+  const familyProfile = parseFamilyProfile(req.query);
   if (skipTrackId && !session.skippedTrackIds.includes(skipTrackId)) {
     session.skippedTrackIds.push(skipTrackId);
   }
@@ -673,7 +722,10 @@ app.get('/radio/session/:id/next', async (req, res) => {
     session.playedTrackIds = [...new Set([...session.playedTrackIds, nextTrack.trackId])];
     session.sequence += 1;
 
-    const newsScript = await getRandomNewsScriptForEra(db, newsScripts, session.era);
+    const newsScript = resolveNewsScriptForFamily(
+      await getRandomNewsScriptForEra(db, newsScripts, session.era),
+      familyProfile
+    );
     const news = await getOrCreateCachedNews({
       era: session.era,
       locale: session.locale,
@@ -682,7 +734,8 @@ app.get('/radio/session/:id/next', async (req, res) => {
       req,
       sourceItems: newsScriptToSourceItems(newsScript),
       newsScriptId: newsScript?.id,
-      headline: newsScript?.title
+      headline: newsScript?.title,
+      familyProfile
     });
     const responsePayload = {
       sessionId: session.sessionId,
@@ -766,7 +819,10 @@ export {
   ALLOWED_TRACK_ERAS,
   normalizeMaxChars,
   normalizeSourceItems,
+  applyFamilyPlaceholders,
   newsScriptToSourceItems,
+  parseFamilyProfile,
+  resolveNewsScriptForFamily,
   normalizeTtsAudioBuffer,
   parseAudioMimeType,
   resolveLlmProvider,

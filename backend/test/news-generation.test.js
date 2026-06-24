@@ -11,6 +11,8 @@ import {
   generateNewsScript,
   normalizeMaxChars,
   normalizeSourceItems,
+  parseFamilyProfile,
+  resolveNewsScriptForFamily,
   newsScriptToSourceItems,
   normalizeTtsAudioBuffer,
   parseAudioMimeType,
@@ -99,11 +101,25 @@ test('maps DB news scripts to LLM source items', () => {
   assert.equal(newsScriptToSourceItems(null), undefined);
 });
 
+
+test('resolves family placeholders in title summary and scriptText', () => {
+  const familyProfile = parseFamilyProfile({ personSelf: '母', personSon1: '太郎', personSon2: '次郎', personHusband: '父', family: '山田家' });
+  assert.deepEqual(resolveNewsScriptForFamily({
+    title: '{{FAMILY}}の話題',
+    summary: '{{PERSON_SELF}}と{{PERSON_HUSBAND}}向け',
+    scriptText: '{{PERSON_SON1}}と{{PERSON_SON2}}にも伝えたいニュースです。'
+  }, familyProfile), {
+    title: '山田家の話題',
+    summary: '母と父向け',
+    scriptText: '太郎と次郎にも伝えたいニュースです。'
+  });
+});
+
 test('builds news cache keys with source identity and date', () => {
   const base = { era: '1990s', locale: 'ja-JP', tone: 'nostalgic', maxChars: 180, providerKey: 'template' };
   assert.equal(
     buildNewsCacheKey({ ...base, newsScriptId: 'cnews1', todayKey: '2026-06-08' }),
-    '1990s|ja-JP|nostalgic|180|template|cnews1|2026-06-08'
+    '1990s|ja-JP|nostalgic|180|template|cnews1|PERSON_SELF:私,PERSON_SON1:長男,PERSON_SON2:次男,PERSON_HUSBAND:夫,FAMILY:家族|2026-06-08'
   );
   assert.notEqual(
     buildNewsCacheKey({ ...base, newsScriptId: 'cnews1', todayKey: '2026-06-08' }),
@@ -113,7 +129,16 @@ test('builds news cache keys with source identity and date', () => {
     buildNewsCacheKey({ ...base, newsScriptId: 'cnews1', todayKey: '2026-06-08' }),
     buildNewsCacheKey({ ...base, newsScriptId: 'cnews1', todayKey: '2026-06-09' })
   );
-  assert.match(buildNewsCacheKey({ ...base, todayKey: '2026-06-08' }), /\|fallback\|2026-06-08$/);
+  assert.match(buildNewsCacheKey({ ...base, todayKey: '2026-06-08' }), /\|fallback\|PERSON_SELF:私,PERSON_SON1:長男,PERSON_SON2:次男,PERSON_HUSBAND:夫,FAMILY:家族\|2026-06-08$/);
+  assert.notEqual(
+    buildNewsCacheKey({ ...base, newsScriptId: 'cnews1', todayKey: '2026-06-08' }),
+    buildNewsCacheKey({
+      ...base,
+      newsScriptId: 'cnews1',
+      todayKey: '2026-06-08',
+      familyProfile: { placeholders: { PERSON_SELF: '母', PERSON_SON1: '長男', PERSON_SON2: '次男', PERSON_HUSBAND: '夫', FAMILY: '家族' } }
+    })
+  );
 });
 
 test('parses news script filter query parameters', () => {

@@ -29,6 +29,15 @@ data class NewsUnit(
     val audioUrl: String
 )
 
+data class FamilyProfile(
+    val version: Int = 1,
+    val personSelf: String = "私",
+    val personSon1: String = "長男",
+    val personSon2: String = "次男",
+    val personHusband: String = "夫",
+    val family: String = "家族"
+)
+
 data class NextPlaybackUnit(
     val news: NewsUnit,
     val track: SessionTrack
@@ -41,7 +50,8 @@ interface RadioApiClient {
         afterTrackId: String,
         clientRequestId: String,
         skipTrackId: String? = null,
-        reason: String? = null
+        reason: String? = null,
+        familyProfile: FamilyProfile = FamilyProfile()
     ): NextPlaybackUnit
 }
 
@@ -71,7 +81,8 @@ class HttpRadioApiClient(
         afterTrackId: String,
         clientRequestId: String,
         skipTrackId: String?,
-        reason: String?
+        reason: String?,
+        familyProfile: FamilyProfile
     ): NextPlaybackUnit {
         val query = mutableListOf(
             "clientRequestId=${URLEncoder.encode(clientRequestId, "UTF-8")}",
@@ -79,6 +90,12 @@ class HttpRadioApiClient(
         )
         skipTrackId?.let { query += "skipTrackId=${URLEncoder.encode(it, "UTF-8")}" }
         reason?.let { query += "reason=${URLEncoder.encode(it, "UTF-8")}" }
+        query += "familyProfileVersion=${familyProfile.version}"
+        query += "personSelf=${URLEncoder.encode(familyProfile.personSelf, "UTF-8")}"
+        query += "personSon1=${URLEncoder.encode(familyProfile.personSon1, "UTF-8")}"
+        query += "personSon2=${URLEncoder.encode(familyProfile.personSon2, "UTF-8")}"
+        query += "personHusband=${URLEncoder.encode(familyProfile.personHusband, "UTF-8")}"
+        query += "family=${URLEncoder.encode(familyProfile.family, "UTF-8")}"
         val response = requestJson(
             method = "GET",
             path = "/radio/session/$sessionId/next?${query.joinToString("&")}"

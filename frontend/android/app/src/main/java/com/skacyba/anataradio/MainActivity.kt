@@ -1,5 +1,6 @@
 package com.skacyba.anataradio
 
+import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import android.webkit.WebView
@@ -25,6 +26,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,6 +51,7 @@ import com.google.android.gms.ads.AdView
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.MobileAds
 import com.skacyba.anataradio.radio.AndroidNewsAudioPlayer
+import com.skacyba.anataradio.radio.FamilyProfile
 import com.skacyba.anataradio.radio.HttpRadioApiClient
 import com.skacyba.anataradio.radio.RadioOrchestrator
 import com.skacyba.anataradio.radio.YouTubeWebViewPlayer
@@ -88,6 +91,7 @@ fun RadioScreen() {
     val context = LocalContext.current
     val webView = remember { WebView(context) }
     var uiState by remember { mutableStateOf(RadioOrchestrator.RadioUiState()) }
+    val savedFamilyProfile = remember { loadFamilyProfile(context) }
 
     val newsAudioPlayer = remember { AndroidNewsAudioPlayer(context.applicationContext) }
     val youTubePlayer = remember { YouTubeWebViewPlayer(webView) }
@@ -99,6 +103,11 @@ fun RadioScreen() {
             scope = coroutineScope,
             onUiStateChanged = { uiState = it }
         ).also { youTubePlayer.listener = it }
+    }
+
+    DisposableEffect(Unit) {
+        orchestrator.updateFamilyProfile(savedFamilyProfile)
+        onDispose { }
     }
 
     DisposableEffect(Unit) {
@@ -128,38 +137,13 @@ fun RadioScreen() {
             onEraSelected = orchestrator::startSession
         )
 
-        Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF111827)), shape = RoundedCornerShape(16.dp)) {
-            AndroidView(
-                factory = { webView },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(220.dp)
-                    .padding(8.dp)
-            )
-        }
-
-        Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF1F2937)), shape = RoundedCornerShape(16.dp)) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Now Playing", color = Color(0xFF93C5FD), fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Text("Era: ${uiState.selectedEra}", color = Color.White, fontSize = 16.sp)
-                Text("Title: ${uiState.nowPlaying?.title ?: "-"}", color = Color.White, fontSize = 16.sp)
-                Text("Artist: ${uiState.nowPlaying?.artist ?: "-"}", color = Color.White, fontSize = 16.sp)
-                Text("State: ${uiState.playbackState}", color = Color(0xFF86EFAC), fontSize = 14.sp)
-                Text(uiState.statusMessage, color = Color(0xFFD1D5DB), fontSize = 14.sp)
+        FamilyProfileEditor(
+            familyProfile = uiState.familyProfile,
+            onFamilyProfileChanged = { profile ->
+                saveFamilyProfile(context, profile)
+                orchestrator.updateFamilyProfile(profile)
             }
-        }
-
-        Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF1F2937)), shape = RoundedCornerShape(16.dp)) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Interlude News TTS", color = Color(0xFFFCD34D), fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Text(uiState.newsHeadline ?: "曲間で年代ニュースをTTS再生します。", color = Color.White, fontSize = 16.sp)
-                Text(uiState.newsScript ?: "最初の1曲が終わると、Backendの /next からニュース音声URLを取得してExoPlayerで再生します。", color = Color(0xFFD1D5DB), fontSize = 14.sp)
-            }
-        }
-
-        uiState.errorMessage?.let { message ->
-            Text("Error: $message", color = Color(0xFFFCA5A5), fontSize = 13.sp)
-        }
+        )
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Button(
@@ -173,6 +157,39 @@ fun RadioScreen() {
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A))
             ) { Text("NEWS / NEXT") }
+        }
+
+        Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF111827)), shape = RoundedCornerShape(16.dp)) {
+            AndroidView(
+                factory = { webView },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp)
+                    .padding(8.dp)
+            )
+        }
+
+        Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF1F2937)), shape = RoundedCornerShape(16.dp)) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Now Playing", color = Color(0xFF93C5FD), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text("Era: ${uiState.selectedEra}", color = Color.White, fontSize = 12.sp)
+                Text("Title: ${uiState.nowPlaying?.title ?: "-"}", color = Color.White, fontSize = 12.sp)
+                Text("Artist: ${uiState.nowPlaying?.artist ?: "-"}", color = Color.White, fontSize = 12.sp)
+                Text("State: ${uiState.playbackState}", color = Color(0xFF86EFAC), fontSize = 11.sp)
+                Text(uiState.statusMessage, color = Color(0xFFD1D5DB), fontSize = 11.sp)
+            }
+        }
+
+        Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF1F2937)), shape = RoundedCornerShape(16.dp)) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Interlude News TTS", color = Color(0xFFFCD34D), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text(uiState.newsHeadline ?: "曲間で年代ニュースをTTS再生します。", color = Color.White, fontSize = 12.sp)
+                Text(uiState.newsScript ?: "最初の1曲が終わると、Backendの /next からニュース音声URLを取得してExoPlayerで再生します。", color = Color(0xFFD1D5DB), fontSize = 11.sp)
+            }
+        }
+
+        uiState.errorMessage?.let { message ->
+            Text("Error: $message", color = Color(0xFFFCA5A5), fontSize = 11.sp)
         }
     }
 }
@@ -245,5 +262,78 @@ private fun EraSelector(selectedEra: String, onEraSelected: (String) -> Unit) {
         }
     }
 }
+
+
+@Composable
+private fun FamilyProfileEditor(
+    familyProfile: FamilyProfile,
+    onFamilyProfileChanged: (FamilyProfile) -> Unit
+) {
+    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF172554)), shape = RoundedCornerShape(16.dp)) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Family Profile", color = Color(0xFFBFDBFE), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Text(
+                "端末内にだけ保存し、DBには保存しません。ニュース本文の {{PERSON_SELF}} などをTTS直前に置換します。",
+                color = Color(0xFFD1D5DB),
+                fontSize = 11.sp
+            )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FamilyProfileField("自分", familyProfile.personSelf, Modifier.weight(1f)) {
+                    onFamilyProfileChanged(familyProfile.copy(personSelf = it))
+                }
+                FamilyProfileField("家族", familyProfile.family, Modifier.weight(1f)) {
+                    onFamilyProfileChanged(familyProfile.copy(family = it))
+                }
+            }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FamilyProfileField("長男", familyProfile.personSon1, Modifier.weight(1f)) {
+                    onFamilyProfileChanged(familyProfile.copy(personSon1 = it))
+                }
+                FamilyProfileField("次男", familyProfile.personSon2, Modifier.weight(1f)) {
+                    onFamilyProfileChanged(familyProfile.copy(personSon2 = it))
+                }
+                FamilyProfileField("夫", familyProfile.personHusband, Modifier.weight(1f)) {
+                    onFamilyProfileChanged(familyProfile.copy(personHusband = it))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FamilyProfileField(label: String, value: String, modifier: Modifier = Modifier, onValueChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label, fontSize = 11.sp) },
+        singleLine = true,
+        modifier = modifier
+    )
+}
+
+private fun loadFamilyProfile(context: Context): FamilyProfile {
+    val prefs = context.getSharedPreferences(FAMILY_PROFILE_PREFS, Context.MODE_PRIVATE)
+    return FamilyProfile(
+        version = prefs.getInt("version", 1),
+        personSelf = prefs.getString("personSelf", "私") ?: "私",
+        personSon1 = prefs.getString("personSon1", "長男") ?: "長男",
+        personSon2 = prefs.getString("personSon2", "次男") ?: "次男",
+        personHusband = prefs.getString("personHusband", "夫") ?: "夫",
+        family = prefs.getString("family", "家族") ?: "家族"
+    )
+}
+
+private fun saveFamilyProfile(context: Context, familyProfile: FamilyProfile) {
+    context.getSharedPreferences(FAMILY_PROFILE_PREFS, Context.MODE_PRIVATE).edit()
+        .putInt("version", familyProfile.version)
+        .putString("personSelf", familyProfile.personSelf)
+        .putString("personSon1", familyProfile.personSon1)
+        .putString("personSon2", familyProfile.personSon2)
+        .putString("personHusband", familyProfile.personHusband)
+        .putString("family", familyProfile.family)
+        .apply()
+}
+
+private const val FAMILY_PROFILE_PREFS = "family_profile_v1"
 
 private const val TAG = "AiradioMain"
