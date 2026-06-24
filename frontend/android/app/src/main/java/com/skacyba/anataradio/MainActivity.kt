@@ -29,6 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -307,7 +308,16 @@ private fun FamilyProfileField(label: String, value: String, modifier: Modifier 
         onValueChange = onValueChange,
         label = { Text(label, fontSize = 11.sp) },
         singleLine = true,
-        modifier = modifier
+        modifier = modifier,
+        colors = TextFieldDefaults.colors(
+            focusedTextColor = Color.White,
+            unfocusedTextColor = Color.White,
+            focusedContainerColor = Color(0xFF0F172A),
+            unfocusedContainerColor = Color(0xFF0F172A),
+            focusedLabelColor = Color(0xFFBFDBFE),
+            unfocusedLabelColor = Color(0xFFCBD5E1),
+            cursorColor = Color(0xFFBFDBFE)
+        )
     )
 }
 

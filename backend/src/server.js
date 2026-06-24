@@ -625,6 +625,11 @@ async function getTrackStore() {
   return { db: getDb(), tracks, newsScripts };
 }
 
+
+function isRecoverableAfterTrackMismatch(session, afterTrackId) {
+  return Boolean(afterTrackId && Array.isArray(session?.playedTrackIds) && session.playedTrackIds.includes(afterTrackId));
+}
+
 function validateTrackEra(res, era) {
   const normalizedEra = normalizeEra(era);
   if (!normalizedEra || !isAllowedTrackEra(normalizedEra)) {
@@ -686,7 +691,7 @@ app.get('/radio/session/:id/next', async (req, res) => {
   }
 
   const afterTrackId = typeof req.query.afterTrackId === 'string' ? req.query.afterTrackId : undefined;
-  if (afterTrackId && afterTrackId !== session.currentTrackId) {
+  if (afterTrackId && afterTrackId !== session.currentTrackId && !isRecoverableAfterTrackMismatch(session, afterTrackId)) {
     return error(res, 409, 'SESSION_STATE_MISMATCH', 'afterTrackId mismatch', { expected: session.currentTrackId, actual: afterTrackId });
   }
 
@@ -808,6 +813,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 
 export {
   app,
+  isRecoverableAfterTrackMismatch,
   buildNewsPrompt,
   calculateGeminiNewsThinkingBudget,
   calculateNewsOutputTokenBudget,

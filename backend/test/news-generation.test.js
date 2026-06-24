@@ -9,6 +9,7 @@ import {
   extractGeminiText,
   extractOpenAiText,
   generateNewsScript,
+  isRecoverableAfterTrackMismatch,
   normalizeMaxChars,
   normalizeSourceItems,
   parseFamilyProfile,
@@ -139,6 +140,14 @@ test('builds news cache keys with source identity and date', () => {
       familyProfile: { placeholders: { PERSON_SELF: '母', PERSON_SON1: '長男', PERSON_SON2: '次男', PERSON_HUSBAND: '夫', FAMILY: '家族' } }
     })
   );
+});
+
+
+test('treats already played afterTrackId mismatches as recoverable', () => {
+  const session = { currentTrackId: 'track-new', playedTrackIds: ['track-old', 'track-new'] };
+  assert.equal(isRecoverableAfterTrackMismatch(session, 'track-old'), true);
+  assert.equal(isRecoverableAfterTrackMismatch(session, 'track-missing'), false);
+  assert.equal(isRecoverableAfterTrackMismatch(session, undefined), false);
 });
 
 test('parses news script filter query parameters', () => {
