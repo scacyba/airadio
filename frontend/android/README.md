@@ -40,14 +40,14 @@ ADMOB_BANNER_AD_UNIT_ID=ca-app-pub-xxxxxxxxxxxxxxxx/zzzzzzzzzz \
 - Kotlin Gradle Plugin: `2.3.21`
 - Gradle Wrapper: `8.13`（`gradle-wrapper.properties`）
 - JDK: **17**
-- compileSdk: `35`
+- compileSdk: `36`
 - minSdk: `24`
-- targetSdk: `35`
+- targetSdk: `36`
 - namespace / applicationId: `com.skacyba.anataradio`
 
 
 ## Google Play Console アップロード要件
-- Google Play の Android 15 要件に合わせ、`compileSdk` / `targetSdk` は API 35 に設定しています。
+- Google Play の Android 16 要件に合わせ、`compileSdk` / `targetSdk` は API 36 に設定しています。
 - 16 KB メモリページサイズ要件に対応し、Kotlin 2.3 系でビルドされた依存関係を扱うため、Android Gradle Plugin は `8.13.2` を使用します。
 - AAB内に含まれるSDK由来のネイティブライブラリも新しいものになるよう、Google Mobile Ads SDK を `25.3.0` に更新しています。
 - Kotlin 2.x 以降では Compose Compiler が Kotlin リポジトリに統合されているため、`org.jetbrains.kotlin.plugin.compose` を使用します。
