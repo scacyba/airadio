@@ -42,13 +42,13 @@ if (hasReleaseKeystore) {
 
 android {
     namespace = "com.skacyba.anataradio"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.skacyba.anataradio"
         minSdk = 24
-        targetSdk = 35
-        versionCode = 5
+        targetSdk = 36
+        versionCode = 6
         versionName = "1.0_#41"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
